@@ -36,8 +36,27 @@ export function polygonDistance(x: number, z: number, pts: XZ[]): number {
   return inside ? -d : d;
 }
 
-function featureHeight(f: Feature, x: number, z: number): number {
+/** Distance from a point to a polyline. */
+export function polylineDistance(x: number, z: number, pts: XZ[]): number {
+  let d = Infinity;
+  for (let a = 0; a < pts.length - 1; a++) {
+    const [ax, az] = pts[a];
+    const [bx, bz] = pts[a + 1];
+    const ex = bx - ax;
+    const ez = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez)));
+    d = Math.min(d, Math.hypot(x - ax - ex * t, z - az - ez * t));
+  }
+  return d;
+}
+
+export function featureHeight(f: Feature, x: number, z: number): number {
   switch (f.type) {
+    case 'ridge': {
+      // A smooth hump across the band: flat-ish top, rounded shoulders.
+      const r = polylineDistance(x, z, f.points) / (f.width / 2);
+      return r >= 1 ? 0 : f.height * (1 - smooth(r));
+    }
     case 'ramp': {
       // u along the heading from the ramp's foot, v across it. The ramp rises to `height` and ends in a sharp drop.
       const s = Math.sin(f.heading);
@@ -90,8 +109,8 @@ export function buildHeights(t: TrackData): HeightGrid {
           0.3 * Math.sin((x + z) * freq * 2.1 + 1.9) +
           0.15 * Math.cos((x - 2 * z) * freq * 3.7));
       for (const f of t.features) y += featureHeight(f, x, z);
-      const inf = 1 - smooth((polygonDistance(x, z, t.infield.points) + 1) / 2.5);
-      y += t.infield.raise * inf;
+      const inf = t.infield ? 1 - smooth((polygonDistance(x, z, t.infield.points) + 1) / 2.5) : 0;
+      if (t.infield) y += t.infield.raise * inf;
       h[i * (nx + 1) + j] = y;
       infield[i * (nx + 1) + j] = inf;
     }

@@ -8,7 +8,7 @@ export const CAMERA = {
   /** Vertical field of view (deg): narrow, so the far wall is barely smaller than the near one. */
   fov: 18,
   /** Screen fraction kept clear at the top for the HUD strip, and margins elsewhere (NDC units, 2 = full). */
-  hudTop: 0.16,
+  hudTop: 0.02,
   margin: 0.03,
 };
 

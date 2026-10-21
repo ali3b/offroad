@@ -64,3 +64,14 @@ export function resetRequested() {
   padResetHeld = now;
   return wasPressed('KeyR') || edge;
 }
+
+/** Enter / Space on the keyboard or A / Start on a pad (menus: "race again"). Edge-triggered. */
+let padConfirmHeld = false;
+export function confirmPressed() {
+  const pads = navigator.getGamepads?.() ?? [];
+  const now = pads.some((p) => p?.connected && ((p.buttons[0]?.pressed ?? false) || (p.buttons[9]?.pressed ?? false)));
+  const edge = now && !padConfirmHeld;
+  padConfirmHeld = now;
+  const key = wasPressed('Enter') || wasPressed('NumpadEnter');
+  return key || edge;
+}

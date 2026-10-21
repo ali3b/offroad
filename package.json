@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
+    "@fontsource/press-start-2p": "5.2.5",
     "three": "0.186.1"
   },
   "devDependencies": {

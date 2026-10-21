@@ -13,3 +13,13 @@ export async function createWorld(): Promise<RAPIER.World> {
   world.timestep = PHYSICS_DT;
   return world;
 }
+
+/** Collision groups (Rapier packs membership in the high 16 bits, the filter in the low 16). */
+export const GROUP = {
+  /** Ground and walls. */
+  STATIC: (0x0001 << 16) | 0xffff,
+  /** Truck chassis: collide with everything (walls, ground, each other). */
+  TRUCK: (0x0002 << 16) | 0xffff,
+  /** Wheel rays: hit only the ground and walls, never another truck's roof. */
+  WHEEL_RAY: (0x0004 << 16) | 0x0001,
+};

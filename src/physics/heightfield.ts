@@ -1,5 +1,5 @@
 // Height grid → Rapier heightfield collider, plus static wall colliders from the track's wall polylines.
-import { RAPIER } from './world';
+import { GROUP, RAPIER } from './world';
 import type { HeightGrid } from '../track/heights';
 import { sampleHeight } from '../track/heights';
 import type { Wall } from '../track/types';
@@ -17,7 +17,8 @@ export function addHeightfield(world: RAPIER.World, g: HeightGrid): RAPIER.Colli
   for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) heights[i + j * rows] = g.h[i * cols + j];
   const desc = RAPIER.ColliderDesc.heightfield(g.nz, g.nx, heights, { x: g.w, y: 1, z: g.d })
     .setFriction(0.9)
-    .setRestitution(0.05);
+    .setRestitution(0.05)
+    .setCollisionGroups(GROUP.STATIC);
   return world.createCollider(desc);
 }
 
@@ -49,7 +50,8 @@ export function addWalls(world: RAPIER.World, g: HeightGrid, walls: Wall[]): RAP
         .setTranslation(mx, (y0 + y1) / 2, mz)
         .setRotation(q)
         .setFriction(0.2)
-        .setRestitution(0.45);
+        .setRestitution(0.45)
+        .setCollisionGroups(GROUP.STATIC);
       out.push(world.createCollider(desc));
     }
   }
