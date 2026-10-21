@@ -8,7 +8,7 @@
   "palette": {"dirt": "#ad6a3c", "dirtDark": "#70421f", "dirtLight": "#c98a58", "ridge": "#e0a58c", "wallA": "#e0b21c", "wallB": "#2b2826", "flag": "#d8301e", "backWall": "#c9b06a", "accent": "#d8a21a"},
   "features": [
     {"type": "ridge", "points": [[-30, 7.7], [42, -11.3]], "width": 7.5, "height": 1.25},
-    {"type": "ramp", "x": 33.5, "z": 4, "heading": 0, "length": 4.5, "width": 12, "height": 0.75, "planks": true},
+    {"type": "ramp", "x": -6.5, "z": 10, "heading": 3.1416, "length": 4.5, "width": 12, "height": 0.75, "planks": true},
     {"type": "ramp", "x": 14, "z": 19.3, "heading": -1.5708, "length": 4.5, "width": 9.5, "height": 0.7, "planks": true},
     {"type": "whoops", "x": -6.5, "z": -9.5, "heading": 3.1416, "length": 6, "width": 11, "wavelength": 2.8, "amp": 0.3},
     {"type": "mound", "x": 38, "z": -23, "rx": 2.4, "rz": 2, "height": 0.8},
