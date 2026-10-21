@@ -16,11 +16,16 @@ cash and credits (beat every CPU truck for a free race; lose to one and it costs
 races (nitro, acceleration, tires, shocks, top speed) and a track rotation that adds tracks and flips their
 direction as the season goes on. The trucks are lifted Synty pickups in four paints and the trackside props (tyre
 piles, barrels, hay bales, floodlight trailers) are Synty models too, all exported as GLBs by `npm run assets`.
+After each race the podium is a little 3D scene: the top three drivers (Synty characters) stand on the steps in
+front of their trucks, the winner celebrates and raises the trophy, 2nd and 3rd wave and 4th slumps. A crowd of
+Synty fans fills the grandstand and cheers at the finish and at big jumps. F2 (or the title menu) switches on a
+DOS look: 200 lines, a 256- or 16-colour palette and scanlines.
 
 ![The title screen over the demo race](docs/screenshots/title.png)
 ![The Speed Shop](docs/screenshots/shop.png)
 
 ![The results podium](docs/screenshots/race-results.png)
+![The DOS look (F2), 256 colours](docs/screenshots/dos-look.png)
 
 ## Controls
 
@@ -33,6 +38,7 @@ piles, barrels, hay bales, floodlight trailers) are Synty models too, all export
 | Reset (standalone race: back to Get Ready!) | R | Back |
 | Menus: move / confirm / back | Arrows or WASD / Enter or Space / Esc | D-pad or stick / A or Start / B |
 | Race again (standalone race results) | Enter | A or Start |
+| DOS look (off, 256, 16 colours) | F2 | |
 | Debug overlay | F3 | |
 
 ## Develop

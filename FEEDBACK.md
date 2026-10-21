@@ -113,3 +113,81 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Suggested change: a size column (metres) in `ssg assets` / `search_assets`, and a modular-piece flag or a link to
   the assembled prefab when the pack has one.
 - Status: triaged (TODO: OR-FB-007)
+
+## OR-FB-008 · `ssg model preview` fails when the web dev server is down, though the API serves the page itself
+- Severity: workaround        Milestone: OR4
+- Tried: `ssg model preview POLYGON_BattleRoyale/Character_RedneckMale_01 --frames 4 --size 200 --out x.png` (and
+  three more characters), 2026-10-21, API on 5181.
+- Wanted: a contact sheet of each driver candidate before exporting it.
+- Got: `ssg: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5180/model-preview.html` and the raw
+  Playwright call log, every time. `/api/health` says `webUrl: http://localhost:5180` (nothing listening) and
+  `servesWeb: true`, and `http://localhost:5181/model-preview.html` answers 200: the page was there all along.
+- Workaround: the game's own `?scene=podium` debug scene became the preview: the drivers were judged from its
+  screenshots (and a frame-by-frame capture of the clips through `window.__or.podium().tick(dt)`).
+- Suggested change: when the server serves the web build itself, open the preview page from its own origin (or
+  fall back to it when `SSG_WEB_URL` does not answer), and turn a connection error into one line that names the URL
+  and the setting.
+- Status: open
+
+## OR-FB-009 · No clap, cheer, celebrate, defeat or seated clips
+- Severity: workaround        Milestone: OR4
+- Tried: `ssg animations victory|cheer|clap|celebrate|defeat|sad|sit|seat|drive|driving|chair`.
+- Wanted: a podium (winner celebrates, 2nd and 3rd clap, 4th dejected), a cheering crowd, and later a driver seated
+  in the cab and a seated crowd on the benches.
+- Got: `MartialArts_Victory` (an upload) is the only victory clip; nothing for clap, cheer, celebrate, defeat, sad,
+  sit, seat or drive (`sit` only finds `Crouch_ToStand`). The Idles pack's waves stand in.
+- Workaround: winner `MartialArts_Victory` then `POLY_IDL_Wave_Double_Loop` (both arms up, with the trophy), 2nd
+  `POLY_IDL_Wave_Large_Loop`, 3rd `POLY_IDL_Wave_Small_Loop` (waves instead of claps), 4th
+  `POLY_IDL_Posture_Slumped_Loop`; the crowd cheers with the two-arm and large waves and stands instead of sitting
+  (`ssg.models.json`, `race/characters.ts` CLIPS). No driver is drawn in the cabs.
+- Suggested change: an animation pack (or Mixamo uploads) with clap, cheer/fist-pump, dejected, a seated idle and a
+  seated driving pose; and synonyms in the clip search (cheer → wave/victory, sad → slumped/disappointed).
+- Status: open
+
+## OR-FB-010 · A clip name is ambiguous: Masculine and Feminine (and Polygon/Sidekick) variants share it
+- Severity: polish        Milestone: OR4
+- Tried: `"clips": ["POLY_IDL_Wave_Large_Loop", …]` on a male (`SK_Character_Biker`) and a female
+  (`SK_Chr_Mechanic_Female_01`) driver.
+- Wanted: the feminine variant on the female mechanic, or at least to know which one was merged.
+- Got: `ssg animations wave` lists `POLY_IDL_Wave_Large_Loop` twice (ids 491/656 Feminine/Masculine on Sidekick,
+  and again on Polygon). The spec takes only a name, `model info` lists each name once in `clipsAvailable`, and the
+  manifest's `clips` entry says nothing about which variant (gender, rig, id) it is.
+- Workaround: none (both look acceptable at podium size).
+- Suggested change: pick the variant that matches the character's gender by default, accept an id or a qualifier
+  (`POLY_IDL_Wave_Large_Loop@Feminine`), and put `{ id, gender, rig, pack }` in the manifest's clip entry.
+- Status: open
+
+## OR-FB-011 · `simplify` does nothing on a skinned character (and says nothing)
+- Severity: polish        Milestone: OR4
+- Tried: `"simplify": 0.5` on the three crowd fans (`SK_Character_SummerGirl`, `_Jock`, `_HipsterGuy`).
+- Wanted: half the triangles for 44 fans in the grandstand.
+- Got: 2304 → 2274, 1814 → 1794, 2636 → 2612 triangles; new export ids, no `warnings`.
+- Workaround: the fans stay at full detail (the crowd is ~98k triangles per pass); the spec does not set `simplify`.
+- Suggested change: simplify skinned meshes too (keeping the skin weights), or say in `warnings` that it was skipped.
+- Status: open
+
+## OR-FB-012 · Crowds need static posed meshes; the game skins them on the CPU itself
+- Severity: workaround        Milestone: OR4
+- Tried: a grandstand of ~44 Synty fans: 44 skinned characters would be 44 skeletons, 44 mixers and 44 draw calls.
+- Wanted: an export of a character frozen in a clip's pose, as a plain (unskinned) mesh, ready for an
+  InstancedMesh: e.g. spec `pose: { clip: "POLY_IDL_Wave_Double_Loop", time: 0.12 }` or `--pose clip@t`, ideally
+  several poses in one GLB as separate meshes.
+- Got: only skinned exports.
+- Workaround: `race/characters.ts bakePose()` loads the skinned GLB, poses it with an AnimationMixer and applies
+  the bone transforms to every vertex once (tagged `// OR-FB-012`); `race/crowd.ts` draws one InstancedMesh per fan
+  model per pose (idle, two cheer frames) plus 6 skinned fans.
+- Suggested change: the `pose` spec field above; and character manifests could carry a posed bound too (the
+  `bounds` are the T-pose: 2.05 × 1.86 × 0.37 m for a person, which is no use for spacing a crowd).
+- Status: open
+
+## OR-FB-013 · No 3D trophy: the trophy props are flat icons
+- Severity: polish        Milestone: OR4
+- Tried: `ssg assets trophy|cup|award|goblet|chalice|medal|prize`.
+- Wanted: a winner's cup for the podium.
+- Got: `POLYGON_Icons/SM_Icon_Trophy_01..04`, 0.34 × 0.40 × 0.08 m: flat, 8 cm deep icon shapes; otherwise drinking
+  cups and fantasy goblets.
+- Workaround: `SM_Icon_Trophy_01` at 1.7× in the winner's right hand (`ui/podium-view.ts`); from the podium camera
+  the flatness does not show.
+- Suggested change: a pack gap note (a sports/stadium pack with trophies); `ssg assets` could tag icon-pack props
+  as `icon` so a search can tell them from full props.
+- Status: open

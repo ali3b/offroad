@@ -1,6 +1,6 @@
 // The grandstand crowd: the generator's Synty fans (ssg.models.json `fan_a/b/c`) in place of build.ts's coloured
 // boxes. A few fans are real skinned characters with their own mixer (idle, then a wave when the crowd cheers);
-// everyone else is a pose baked once into static geometry (race/characters.ts bakePose) and drawn as one
+// everyone else is a pose baked once into static geometry (race/characters.ts bakePose, OR-FB-012) and drawn as one
 // InstancedMesh per fan model per pose, so ~40 fans cost a handful of draw calls and no skeletons.
 // The crowd cheers on the event bus: a truck finishing, or a big jump landing.
 // Without models nothing changes and the boxes stay.

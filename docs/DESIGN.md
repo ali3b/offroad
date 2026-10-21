@@ -22,6 +22,7 @@ src/
     camera.ts        the fixed whole-track camera (CAMERA: pitch, fov, margins) and fitFixedCamera()
     loop.ts          fixed 60 Hz physics step with an accumulator (max 6 steps/frame), render per rAF, advance()
     input.ts         keyboard + Gamepad API → TruckInput; confirm (Enter / pad A) for menus
+    retro.ts         the DOS look (F2): low-res render target, palette + dither, scanlines; or.settings
   physics/
     world.ts         RAPIER.init(), World (gravity -14), PHYSICS_DT, collision GROUPs
     heightfield.ts   height grid → Rapier heightfield collider; wall polylines → cuboid colliders (an invisible fence)
@@ -43,6 +44,8 @@ src/
     events.ts        the game event bus (audio subscribes here)
     models.ts        public/models/models.json (ssg model apply) when present: modelIndex(), loadModel(name)
     truck-view.ts    the truck's look: the generator's GLB with manifest-driven wheels, or the box placeholder
+    characters.ts    the generator's Synty characters: Character (clone + mixer, play by clip), bakePose()
+    crowd.ts         the grandstand fans: a few skinned, the rest baked poses instanced; cheers on the event bus
   fx/
     particles.ts     pooled instanced billboards: dust, water splash, mud spray, nitro smoke
     skids.ts         skid-mark decals: a ring buffer of instanced ground segments that fade out
@@ -50,6 +53,8 @@ src/
     pixel.ts         the bundled pixel font (Press Start 2P) and a style helper
     race-hud.ts      the one-panel race HUD, the track name, centre banners, floating pickup texts
     results.ts       the podium / results screen (season: FREE RACE! / CREDIT LOST, credits, the shop prompt)
+    podium-view.ts   the results screen's 3D podium: its own small canvas, drivers, trucks, trophy
+    toast.ts         a short message at the top (F2's DOS look setting)
     debug.ts         F3 overlay
     screens/         full-screen menus: common (DOS look, panels, icons), title, hints, register (+ get ready),
                      shop, continue (+ game over), track-thumb (a 2D map of a track from its JSON)
@@ -63,6 +68,8 @@ src/
 - `test`: the player's truck alone on `?track=` (default `test`, the proving ground). R resets.
 - `race`: a 4-truck race on `?track=` (default `rattlesnake`). `&reverse` drives the reversed variant, `&cpus=0..3`
   races fewer CPU trucks (tuning), `&autopilot` lets the AI drive the player's truck (tests, demos).
+- `podium`: the results screen with made-up results and no race behind it, for the podium screenshot
+  (`&order=2,0,1,3`: slots from 1st to 4th). `load-check.mjs … podium` saves `test-results/podium.png`.
 
 `?debug` opens the F3 overlay. Every race scene runs a little physics when it's built (0.5 s; 1 s on the proving
 ground) so the trucks settle on their springs; the loop starts and `window.__or.ready` is set once the first scene
@@ -337,6 +344,7 @@ tracks lane) when it exists; until then every registered track with a racing lin
 which then alternates forward / reversed). A track without a `reverse` variant is driven forwards.
 
 ### Save (`localStorage`)
+- `or.settings`: `{ dos: boolean, palette: 256 | 16 | 0 }`, the DOS look (engine/retro.ts); default off.
 - `or.season`: `{ v: 1, race, players: [{ initials, colour, cash, credits, levels, nitros }], cpus: [{ colour,
   cash, levels, nitros }], last: { track, outcomes, places } }`, written after every race, purchase and continue;
   deleted on game over. CONTINUE SEASON on the title reopens it at the shop (or at CONTINUE? with no credits).
@@ -364,6 +372,9 @@ afterwards: `__HAS_MODELS__` (vite.config.ts) is decided at server start, so a m
 | `hay_bale` | War `SM_Prop_Hay_Bale_01` | kind `hay_bale` |
 | `tire`, `cone`, `barrier` | Apocalypse `SM_Prop_Tire_01`, Palm City `SM_Prop_Cone_01`, `SM_Prop_Barrier_01` | kinds `tyre`, `cone`, `barrier`, ready for new tracks |
 | `floodlight` | Apocalypse `SM_Prop_Floodlights_01` (a light-mast trailer) | stadium dressing along the back wall |
+| `driver_red/yellow/blue/grey` | City Characters `SK_Character_Biker`, BattleRoyale `Character_RedneckMale_01`, Apocalypse `SK_Chr_Mechanic_Female_01`, City Characters `SK_Character_Roadworker` | podium drivers; clips idle, victory, three waves, slumped (see Presentation) |
+| `fan_a/b/c` | City Characters `SK_Character_SummerGirl`, `SK_Character_Jock`, `SK_Character_HipsterGuy` | grandstand crowd; clips idle and two waves |
+| `trophy` | Icons `SM_Icon_Trophy_01` | the winner's cup on the podium |
 
 Props default to 256 px WebP textures (Synty atlases are flat colour swatches; 256 px looks the same at the race
 camera), trucks 1024 px WebP. Tried and dropped: billboards (their sign art does not come through, OR-FB-005), a
@@ -404,6 +415,67 @@ Each truck is 16.7k triangles in 14 meshes (doors, glass, wheels, lift kit); pro
 per model however many are placed. SwiftShader is CPU-bound and runs ~5 fps either way (the checks use
 `advance()`); on a real GPU the scene is well inside budget.
 
-**Bundle**: `dist/` is 11 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined) and
+**Bundle** (before the OR4 characters: `dist/` is now 15 MB with 9.2 MB of models, the 7 characters + trophy
+adding 3.5 MB): `dist/` was 11 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined) and
 `dist/models/` 5.9 MB, of which the four trucks are 4 × 1.37 MB (0.66 MB gzipped each, the same geometry four
 times, OR-FB-006) and the nine props 0.7 MB. With the default PNG textures the models were 19.6 MB (OR-FB-004).
+
+## Presentation (OR4)
+
+### Podium (`ui/podium-view.ts`)
+With models, the results screen's flat pixel drivers become a 3D scene in a 922 × 300 canvas between the times box
+and the plates. It has its own `WebGLRenderer` (one context, made on first use and kept; `alpha` so the screen's
+checker shows round a disc of arena dirt) and its own `requestAnimationFrame` loop while the screen is up. Three
+steps (gold, silver, bronze; the number drawn on a canvas texture with the face's aspect) stand in plate order
+2nd, 1st, 3rd, with 4th on the ground to the right, 3.6 m apart, and the camera's fov is set from the canvas aspect
+so the four columns land over the four plates. Each driver stands in front of their truck (the same TruckView,
+parked at `TruckView.groundLift`, turned a little), both at `TRUCK_LOOK`.
+
+| place | clip | |
+|---|---|---|
+| 1st | `MartialArts_Victory` once, then `POLY_IDL_Wave_Double_Loop` | holds the trophy (`trophy`, `SM_Icon_Trophy_01` × 1.7) in `hand_r`, kept upright |
+| 2nd | `POLY_IDL_Wave_Large_Loop` | |
+| 3rd | `POLY_IDL_Wave_Small_Loop` | (no clap clip, OR-FB-009) |
+| 4th | `POLY_IDL_Posture_Slumped_Loop` | |
+
+Drivers by truck colour (`driver_<colour>` in ssg.models.json): red `SK_Character_Biker` (City Characters),
+yellow `Character_RedneckMale_01` (BattleRoyale), blue `SK_Chr_Mechanic_Female_01` (Apocalypse), grey
+`SK_Character_Roadworker` (City Characters, hi-vis). Every driver carries all six clips (any of them can finish
+anywhere), 0.5–0.7 MB each. `main.ts` preloads them after boot. The trophy follows the hand bone's world
+position rather than being parented to it, so it never takes the bone's axes. `window.__or.podium()` gives
+`stop()`, `tick(dt)` (step the clips by hand for frame captures) and `info` (draw calls, triangles).
+
+### Crowd (`race/crowd.ts`)
+build.ts names its grandstand group `grandstand` and its box crowd `crowd` (the hook); the Session's `Crowd`
+hides the boxes once the fans have loaded and stands a fan on every other box spot (44 on the four benches).
+Three fan models (`fan_a/b/c`: City Characters SummerGirl, Jock, HipsterGuy with `POLY_IDL_Base`,
+`POLY_IDL_Wave_Double_Loop`, `POLY_IDL_Wave_Large_Loop`) at `FAN_LOOK = 1.05`:
+- 6 fans along the front rows are skinned `Character`s with their own mixer (idle; when cheering a two-arm or a
+  large wave, cross-faded).
+- The other 38 are baked poses (`bakePose`, OR-FB-012): each fan model is posed with a mixer three times (idle,
+  two frames of the two-arm wave) and its skinned vertices are transformed once on the CPU into a static mesh. One
+  InstancedMesh per fan model per pose; while cheering, each fan flips between the two wave frames at its own
+  phase (~4 Hz) and hops a little, and the matrices are re-packed so each mesh draws only the fans in its pose.
+- Cheers: `finish` (any truck, 4 s) and `land` with `airTime ≥ 0.5 s` (2.5 s), from the event bus; a new cheer
+  extends the current one. `window.__or.crowd()` gives `cheer(s)`, `cheering`, `drawCalls()`, `ready`.
+- The baked geometry is cached for the page; RaceScene.dispose detaches the crowd before it frees the scene.
+
+**Cost** (Rattlesnake race, 4 trucks, SwiftShader 1280×720, both passes: main + shadow map):
+
+| | draw calls | triangles | fps (SwiftShader) |
+|---|---|---|---|
+| box crowd (88 boxes) | 204 | 366k | 4 |
+| fans, idle (3 instanced + 6 skinned per pass) | 220 | 562k | 4 |
+| fans, cheering (6 instanced + 6 skinned per pass) | 226 | 562k | 4 |
+
+The fans add 16–22 draw calls and ~98k triangles per pass (Synty characters are ~1.8–2.6k triangles and
+`simplify` does not reduce them, OR-FB-011). SwiftShader is CPU-bound at ~4–5 fps either way.
+
+### DOS look (`engine/retro.ts`)
+Off by default. F2 cycles off → 256 colours → 16 colours → off (a toast says which); the title menu has a
+`DOS LOOK:` line doing the same. Saved in `or.settings`. When on, `RaceScene.render` draws through `retro.render`:
+the scene goes into a 200-row HalfFloat render target (width from the window's aspect, ~356 at 16:9), then a
+full-screen quad samples it with nearest filtering, converts to sRGB, quantises (256: 3-3-2 bits per channel with
+4×4 Bayer dither; 16: the nearest EGA colour, luma-weighted, with a lighter dither), darkens the lower third of each
+low-res row as a scanline and adds a slight vignette. The DOM HUD stays sharp, like the original's text. The podium
+canvas follows the setting at a third of its resolution with `image-rendering: pixelated`.

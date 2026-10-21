@@ -101,6 +101,7 @@ const _v = new THREE.Vector3();
 const _n = new THREE.Vector3();
 
 /**
+ * OR-FB-012: the generator exports only skinned characters, so the game freezes poses itself.
  * Freeze `clip` at `time` (s) into static geometry in the model's own frame (feet at y = 0, facing +Z): the CPU
  * skins every vertex once. A static pose draws as a plain (instanced) mesh, with no skeleton per copy.
  */

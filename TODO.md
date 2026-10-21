@@ -31,7 +31,7 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [x] Keyboard (arrows/WASD, Space/Shift) + Gamepad API; F3 debug overlay (speed, wheel contacts, suspension)
 - [x] `window.__or` test handle; `scripts/drive-check.mjs` (throttle 3 s moves > 15 m upright, right turn, nitro
       jump); `scripts/feel-probe.mjs` (0→top, braking, turn rate, air time)
-- [ ] The player truck exported through `ssg model apply` (lifted pickup, 4 tints, origin axle-centre); wheels
+- [x] The player truck exported through `ssg model apply` (lifted pickup, 4 tints, origin axle-centre); wheels
       driven from the manifest `wheels` block (blocked on the generator's M1/M2, OR-FB-001)
 - [x] Feel tuned against the reference footage (research/ORIGINAL.md): top speed vs. track size, turn rate, jump hang time,
       bounce over whoops, wall bumps (laps 16–17 s on track 1; table in docs/DESIGN.md; `scripts/lap-probe.mjs`)
@@ -68,10 +68,13 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 ## OR4 · Presentation
 - [x] Title / attract mode with a demo race (our DOS-style logo, the demo race behind it, hints in the attract loop,
       racing hints, driver sign-up with initials + colour, get ready; title is the default scene)
-- [ ] Podium with animated drivers (a multi-clip character GLB from the generator)
-- [ ] A crowd in the stands; our own chiptune-style music; engine, skid and crash sounds
+- [x] Podium with animated drivers (a multi-clip character GLB from the generator): a 3D podium on the results
+      screen, `driver_<colour>` Synty drivers (victory / waves / slumped), their trucks, a trophy; `?scene=podium`
+- [x] A crowd in the stands (Synty fans: 6 skinned + baked poses instanced, cheering on finishes and big jumps);
+      our own chiptune-style music; engine, skid and crash sounds (audio lane)
 - [ ] Local 2-player (keyboard + pad)
-- [ ] Settings screen with a CRT / pixel option for the DOS look
+- [x] A CRT / pixel option for the DOS look: F2 or the title menu (200 lines, 256/16 colours, scanlines), saved in
+      `or.settings`; a full settings screen (volumes) is still open
 
 ## OR5 · Polish and story
 - [ ] Performance passes (instancing, shadow budget), gamepad polish
