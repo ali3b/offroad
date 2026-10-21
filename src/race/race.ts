@@ -136,7 +136,7 @@ export class Race {
       ai: new AiDriver(line, r.entry.skill, r.slot + 1, 0),
       prev: { x: 0, z: 0 },
     }));
-    this.pickups = new Pickups(line, t.heightAt, 15);
+    this.pickups = new Pickups(line, t.levelAt, 15);
     session.scene.add(this.pickups.group);
     this.record = loadRecords()[t.data.id] ?? null;
     this.restart();
@@ -153,7 +153,7 @@ export class Race {
     s.particles.clear();
     this.pickups.clear();
     this.session.scene.remove(this.pickups.group);
-    this.pickups = new Pickups(this.line, s.track.heightAt, 15, 7 + Math.floor(Math.random() * 1000));
+    this.pickups = new Pickups(this.line, s.track.levelAt, 15, 7 + Math.floor(Math.random() * 1000));
     this.session.scene.add(this.pickups.group);
     s.racers.forEach((r, i) => {
       r.truck.nitros = carry[i] ?? (i === 0 ? START_NITROS.player : START_NITROS.cpu);
@@ -272,7 +272,8 @@ export class Race {
     const t = this.session.racers[slot].truck;
     const sNew = st.ai.s + 2;
     const p = this.line.pointAt(sNew);
-    t.place({ x: p.x, z: p.z, y: this.session.track.heightAt(p.x, p.z) + 1.3, heading: this.line.headingAt(sNew) });
+    const heading = this.line.headingAt(sNew);
+    t.place({ x: p.x, z: p.z, y: this.session.track.levelAt(p.x, p.z, heading) + 1.3, heading });
     st.ai.s = this.line.wrap(sNew);
     st.ai.wantsRescue = false;
     // Teleporting must not count as crossing a gate.

@@ -68,7 +68,8 @@ export class Session {
 
   startSpot(slot: number) {
     const [x, z] = this.track.data.start.grid[slot];
-    return { x, z, y: this.track.heightAt(x, z) + 1.4, heading: this.track.data.start.heading };
+    const heading = this.track.data.start.heading;
+    return { x, z, y: this.track.levelAt(x, z, heading) + 1.4, heading };
   }
 
   reset() {
@@ -118,7 +119,8 @@ export class Session {
         const dx = pa.x - pb.x;
         const dz = pa.z - pb.z;
         const d = Math.hypot(dx, dz);
-        if (pa.y - pb.y < 0.5 || d > 2.6) continue;
+        // (More than a truck's height apart is a bridge deck over the lane below, not a stack.)
+        if (pa.y - pb.y < 0.5 || pa.y - pb.y > 2.4 || d > 2.6) continue;
         const v = rs[a].truck.body.linvel();
         const nx = d > 0.05 ? dx / d : 1;
         const nz = d > 0.05 ? dz / d : 0;
@@ -227,6 +229,7 @@ export class Session {
     this.scene.remove(this.track.group, this.skids.mesh, this.particles.mesh);
     this.world.removeCollider(this.track.ground, false);
     for (const w of this.track.walls) this.world.removeCollider(w, false);
+    for (const d of this.track.decks) this.world.removeCollider(d, false);
     this.queue.free();
   }
 }

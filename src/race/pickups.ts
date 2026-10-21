@@ -50,7 +50,8 @@ export class Pickups {
 
   constructor(
     readonly line: RacingLine,
-    readonly heightAt: (x: number, z: number) => number,
+    /** The level a truck rides on at (x, z) heading that way (the deck on a bridge, else the ground). */
+    readonly heightAt: (x: number, z: number, heading: number) => number,
     /** Rough lap time (s): about one drop per lap. */
     readonly lapTime: number,
     seed = 7,
@@ -96,14 +97,15 @@ export class Pickups {
   spawn(trucks: Truck[], kind?: PickupKind) {
     const k: PickupKind = kind ?? (this.rand() < 0.55 ? 'money' : 'nitro');
     for (let tries = 0; tries < 20; tries++) {
-      const p = this.line.pointAt(this.rand() * this.line.length);
+      const s = this.rand() * this.line.length;
+      const p = this.line.pointAt(s);
       const far = trucks.every((t) => {
         const q = t.body.translation();
         return Math.hypot(q.x - p.x, q.z - p.z) > 15;
       });
       if (!far && tries < 19) continue;
       const mesh = this.makeMesh(k);
-      const y = this.heightAt(p.x, p.z) + 0.9;
+      const y = this.heightAt(p.x, p.z, this.line.headingAt(s)) + 0.9;
       mesh.position.set(p.x, y, p.z);
       this.group.add(mesh);
       this.items.push({ kind: k, value: this.nextValue(k), x: p.x, y, z: p.z, ttl: this.lapTime * 1.4, mesh });

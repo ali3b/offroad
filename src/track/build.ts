@@ -3,12 +3,12 @@
 // Placeholder art (vertex colours, primitive tyres and props) until the generator's 3D export supplies props
 // (ssg.models.json; OR-FB-001).
 import * as THREE from 'three';
-import type RAPIER from '@dimforge/rapier3d-compat';
 import { addHeightfield, addWalls, WALL_HEIGHT } from '../physics/heightfield';
+import { GROUP, RAPIER } from '../physics/world';
 import { DIRT as DRY, type Surface } from '../physics/vehicle';
-import { buildHeights, featureHeight, polygonDistance, sampleHeight, type HeightGrid } from './heights';
+import { bridgeFrame, buildHeights, featureHeight, onDeck, polygonDistance, polylineDistance, sampleHeight, type BridgeFrame, type HeightGrid } from './heights';
 import { RacingLine } from './line';
-import type { TrackData, XZ, Zone } from './types';
+import type { BridgeFeature, Palette, TrackData, XZ, Zone } from './types';
 
 export interface StartLights {
   /** 0 = all off, 1..3 = that many red lamps, 4 = green. */
@@ -27,6 +27,14 @@ export interface Track {
   /** Box around the playfield including the walls: what the fixed camera frames. */
   bounds: THREE.Box3;
   heightAt(x: number, z: number): number;
+  /**
+   * The height a truck driving at `heading` would ride on at (x, z): the bridge deck when it's on a deck's footprint
+   * and heading along the deck, else the ground. Used to put trucks and pickups on the right level.
+   */
+  levelAt(x: number, z: number, heading: number): number;
+  /** Bridge decks (their own colliders over the heightfield). */
+  decks: RAPIER.Collider[];
+  bridges: BridgeFrame[];
   /** The surface under a point: dirt, water or mud. */
   surface(x: number, y: number, z: number): Surface;
   ground: RAPIER.Collider;
@@ -36,11 +44,20 @@ export interface Track {
   flagman: Flagman;
 }
 
-// The original's sandy arena palette: orange-brown dirt, sun-bleached pink ridges, dark pits.
-const DIRT = new THREE.Color('#b57336');
-const DIRT_DARK = new THREE.Color('#7f4a22');
-const DIRT_LIGHT = new THREE.Color('#c98a4c');
-const RIDGE = new THREE.Color('#d6a088');
+// The original's sandy arena palette: orange-brown dirt, sun-bleached pink ridges, dark pits. A track's `palette`
+// overrides any of these (its accent colours).
+const DEFAULT_PALETTE: Required<Palette> = {
+  dirt: '#b57336',
+  dirtDark: '#7f4a22',
+  dirtLight: '#c98a4c',
+  ridge: '#d6a088',
+  wallA: '#c42a24',
+  wallB: '#e9e4dc',
+  flag: '#2f55d4',
+  backWall: '#9c97c9',
+  accent: '#2f6fb6',
+};
+const paletteOf = (t: TrackData): Required<Palette> => ({ ...DEFAULT_PALETTE, ...t.palette });
 const GRASS = new THREE.Color('#6f7f35');
 const MUD = new THREE.Color('#553519');
 const PLANK = new THREE.Color('#5e3d22');
@@ -67,23 +84,42 @@ function vnoise(x: number, z: number) {
   return (a * (1 - sx) + b * sx) * (1 - sz) + (c * (1 - sx) + d * sx) * sz;
 }
 
-/** 0 outside .. 1 well inside an ellipse zone, with a soft rim of `soft` (in ellipse radii). */
+/** Normalised distance into a zone: 0 at its centre (line), 1 at its edge. */
+function zoneR(z: Zone, x: number, zz: number) {
+  return z.shape === 'path' ? polylineDistance(x, zz, z.points) / (z.width / 2) : Math.hypot((x - z.x) / z.rx, (zz - z.z) / z.rz);
+}
+
+/** 0 outside .. 1 well inside a zone, with a soft rim of `soft` (in zone radii). */
 function zoneWeight(z: Zone, x: number, zz: number, soft = 0.25) {
-  const r = Math.hypot((x - z.x) / z.rx, (zz - z.z) / z.rz);
-  return Math.max(0, Math.min(1, (1 - r) / soft));
+  return Math.max(0, Math.min(1, (1 - zoneR(z, x, zz)) / soft));
 }
 
 function inZone(z: Zone, x: number, zz: number) {
-  return ((x - z.x) / z.rx) ** 2 + ((zz - z.z) / z.rz) ** 2 <= 1;
+  return zoneR(z, x, zz) <= 1;
+}
+
+/** A zone's bounding box (x0, z0, x1, z1) with `pad` metres around it. */
+function zoneBox(z: Zone, pad = 0): [number, number, number, number] {
+  if (z.shape === 'ellipse') return [z.x - z.rx - pad, z.z - z.rz - pad, z.x + z.rx + pad, z.z + z.rz + pad];
+  const xs = z.points.map((p) => p[0]);
+  const zs = z.points.map((p) => p[1]);
+  const r = z.width / 2 + pad;
+  return [Math.min(...xs) - r, Math.min(...zs) - r, Math.max(...xs) + r, Math.max(...zs) + r];
 }
 
 function groundMesh(t: TrackData, g: HeightGrid) {
+  const pal = paletteOf(t);
+  const DIRT = new THREE.Color(pal.dirt);
+  const DIRT_DARK = new THREE.Color(pal.dirtDark);
+  const DIRT_LIGHT = new THREE.Color(pal.dirtLight);
+  const RIDGE = new THREE.Color(pal.ridge);
   const cols = g.nx + 1;
   const rows = g.nz + 1;
   const pos = new Float32Array(rows * cols * 3);
   const col = new Float32Array(rows * cols * 3);
   const c = new THREE.Color();
-  const ridges = t.features.filter((f) => f.type === 'ridge');
+  // Raised earth (ridges, banks, plateaus) is sun-bleached pink; a negative ridge is a channel and stays dirt.
+  const ridges = t.features.filter((f) => (f.type === 'ridge' && f.height > 0) || f.type === 'bank' || f.type === 'plateau');
   const planks = t.features.filter((f) => f.type === 'ramp' && f.planks);
   const muds = t.zones.filter((z) => z.type === 'mud');
   for (let i = 0; i < rows; i++) {
@@ -100,7 +136,7 @@ function groundMesh(t: TrackData, g: HeightGrid) {
       c.lerp(DIRT_DARK, Math.max(0, mottle - 0.55) * 0.9);
       c.offsetHSL(0, 0, slope * 0.06 + (hash(x, z) - 0.5) * 0.06);
       for (const r of ridges) {
-        const w = featureHeight(r, x, z) / (r.type === 'ridge' ? r.height : 1);
+        const w = featureHeight(r, x, z) / ('height' in r ? r.height : 1);
         if (w > 0) c.lerp(RIDGE, Math.min(1, w * 1.6) * 0.85);
       }
       for (const p of planks) {
@@ -159,10 +195,11 @@ function mudMeshes(t: TrackData, g: HeightGrid) {
     const pos: number[] = [];
     const col: number[] = [];
     const idx: number[] = [];
+    const [bx0, bz0, bx1, bz1] = zoneBox(z, 1);
     for (let i = 0; i <= n; i++)
       for (let j = 0; j <= n; j++) {
-        const x = z.x + (j / n - 0.5) * 2.3 * z.rx;
-        const zz = z.z + (i / n - 0.5) * 2.3 * z.rz;
+        const x = bx0 + (j / n) * (bx1 - bx0);
+        const zz = bz0 + (i / n) * (bz1 - bz0);
         const a = zoneWeight(z, x, zz, 0.4) * (0.6 + 0.35 * vnoise(x * 0.8, zz * 0.8));
         pos.push(x, sampleHeight(g, x, zz) + 0.03, zz);
         col.push(1, 1, 1, a);
@@ -212,8 +249,9 @@ function tyreWalls(t: TrackData, g: HeightGrid) {
   const layers = Math.round(WALL_HEIGHT / 0.42);
   const mesh = new THREE.InstancedMesh(tyre, new THREE.MeshLambertMaterial(), spots.length * layers);
   const m4 = new THREE.Matrix4();
-  const red = new THREE.Color('#c42a24');
-  const white = new THREE.Color('#e9e4dc');
+  const pal = paletteOf(t);
+  const red = new THREE.Color(pal.wallA);
+  const white = new THREE.Color(pal.wallB);
   const dark = new THREE.Color('#2a2624');
   let i = 0;
   spots.forEach((p) => {
@@ -240,7 +278,7 @@ function wallFlags(t: TrackData, g: HeightGrid) {
   const flagGeo = new THREE.BufferGeometry();
   flagGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, -0.55, 0, 0.9, -0.28, 0], 3));
   flagGeo.computeVertexNormals();
-  const flagMat = new THREE.MeshLambertMaterial({ color: '#2f55d4', side: THREE.DoubleSide });
+  const flagMat = new THREE.MeshLambertMaterial({ color: paletteOf(t).flag, side: THREE.DoubleSide });
   for (const w of t.walls) {
     if (w.closed) continue;
     for (const [x, z] of [w.points[0], w.points[w.points.length - 1]]) {
@@ -262,11 +300,38 @@ function waterMeshes(t: TrackData) {
   const out: THREE.Mesh[] = [];
   for (const z of t.zones) {
     if (z.type !== 'water') continue;
+    const mat = new THREE.MeshStandardMaterial({ color: '#4f8fc4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.82 });
+    if (z.shape === 'path') {
+      // A creek: a flat sheet at the water level, kept where it's inside the band (fine cells, so the banks are smooth).
+      const [x0, z0, x1, z1] = zoneBox(z);
+      const cell = 0.35;
+      const nx = Math.ceil((x1 - x0) / cell);
+      const nz = Math.ceil((z1 - z0) / cell);
+      const pos: number[] = [];
+      const idx: number[] = [];
+      for (let i = 0; i <= nz; i++) for (let j = 0; j <= nx; j++) pos.push(x0 + j * cell, z.level, z0 + i * cell);
+      const inside = (k: number) => zoneR(z, pos[k * 3], pos[k * 3 + 2]) <= 1.02;
+      for (let i = 0; i < nz; i++)
+        for (let j = 0; j < nx; j++) {
+          const a = i * (nx + 1) + j;
+          const b = a + 1;
+          const c = a + nx + 1;
+          const d = c + 1;
+          if (inside(a) && inside(b) && inside(c)) idx.push(a, c, b);
+          if (inside(b) && inside(c) && inside(d)) idx.push(b, c, d);
+        }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.receiveShadow = true;
+      mesh.name = 'water';
+      out.push(mesh);
+      continue;
+    }
     const geo = new THREE.CircleGeometry(1, 40);
-    const mesh = new THREE.Mesh(
-      geo,
-      new THREE.MeshStandardMaterial({ color: '#4f8fc4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.82 }),
-    );
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.scale.set(z.rx, z.rz, 1);
     mesh.position.set(z.x, z.level, z.z);
@@ -415,7 +480,7 @@ function stadium(t: TrackData, g: HeightGrid) {
   const x0 = Math.min(...xs);
   const x1 = Math.max(...xs);
   const z0 = Math.min(...zs);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 16, 3.2, 0.6), new THREE.MeshLambertMaterial({ color: '#9c97c9' }));
+  const back = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 16, 3.2, 0.6), new THREE.MeshLambertMaterial({ color: paletteOf(t).backWall }));
   back.position.set((x0 + x1) / 2, sampleHeight(g, (x0 + x1) / 2, z0 - 4) + 1.6, z0 - 4.2);
   back.receiveShadow = true;
   group.add(back);
@@ -454,6 +519,9 @@ function props(t: TrackData, g: HeightGrid) {
   group.name = 'props';
   const rubber = new THREE.MeshLambertMaterial({ color: '#262321' });
   const tyre = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 12);
+  const accent = new THREE.MeshLambertMaterial({ color: paletteOf(t).accent });
+  const coneMat = new THREE.MeshLambertMaterial({ color: '#f06a1a' });
+  const bandMat = new THREE.MeshLambertMaterial({ color: '#f4f1ea' });
   for (const p of t.props ?? []) {
     const y = sampleHeight(g, p.x, p.z);
     const o = new THREE.Group();
@@ -467,10 +535,19 @@ function props(t: TrackData, g: HeightGrid) {
         o.add(m);
       }
     } else if (p.kind === 'barrel') {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 12), new THREE.MeshLambertMaterial({ color: '#2f6fb6' }));
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 12), accent);
       m.position.y = 0.6;
       m.castShadow = true;
       o.add(m);
+    } else if (p.kind === 'cone') {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 10), coneMat);
+      m.position.y = 0.43;
+      m.castShadow = true;
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.24, 0.16, 10), bandMat);
+      band.position.y = 0.48;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.06, 0.75), coneMat);
+      base.position.y = 0.03;
+      o.add(m, band, base);
     } else {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.9, 1.0), new THREE.MeshLambertMaterial({ color: '#d8b453' }));
       m.position.y = 0.45;
@@ -480,6 +557,118 @@ function props(t: TrackData, g: HeightGrid) {
     group.add(o);
   }
   return group;
+}
+
+/** Red/white stripes for a bridge's sides (a canvas texture repeated along the deck). */
+function stripeTexture(a: string, b: string) {
+  const cv = document.createElement('canvas');
+  cv.width = 32;
+  cv.height = 4;
+  const cx = cv.getContext('2d')!;
+  cx.fillStyle = a;
+  cx.fillRect(0, 0, 16, 4);
+  cx.fillStyle = b;
+  cx.fillRect(16, 0, 16, 4);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.magFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/**
+ * Each bridge: the deck (a plank slab with striped sides) and its two railings, drawn and collided. The deck is a
+ * cuboid collider flush with the embankment top; the railings are walls that start under the deck edge and stop
+ * 1.6 m above it, so they never reach down into the lane below.
+ */
+function bridges(t: TrackData, world: RAPIER.World, frames: BridgeFrame[]) {
+  const group = new THREE.Group();
+  group.name = 'bridges';
+  const decks: RAPIER.Collider[] = [];
+  const rails: RAPIER.Collider[] = [];
+  const pal = paletteOf(t);
+  const SLAB = 0.4;
+  for (const b of frames) {
+    const f = b.f as BridgeFeature;
+    const len = b.spanHalf * 2;
+    const yaw = f.heading;
+    const q = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
+    const deckW = f.width + 1;
+    // Deck: local x across, z along (the heading), so it lines up with three's rotation.y = heading.
+    const stripes = stripeTexture(pal.wallA, pal.wallB);
+    stripes.repeat.set(len / 3, 1);
+    const side = new THREE.MeshLambertMaterial({ map: stripes });
+    const top = new THREE.MeshLambertMaterial({ color: '#7a5634' });
+    const under = new THREE.MeshLambertMaterial({ color: '#3b2a1c' });
+    // Box faces: +x, -x, +y, -y, +z, -z. The long sides (±x) carry the stripes.
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(deckW, SLAB, len), [side, side, top, under, under, under]);
+    deck.position.set(f.x, f.height - SLAB / 2, f.z);
+    deck.rotation.y = yaw;
+    deck.castShadow = true;
+    deck.receiveShadow = true;
+    group.add(deck);
+    // Planks across the deck.
+    const plank = new THREE.BoxGeometry(deckW - 0.2, 0.04, 0.12);
+    const plankMat = new THREE.MeshLambertMaterial({ color: '#4a3220' });
+    const nPl = Math.floor(len / 0.9);
+    const planks = new THREE.InstancedMesh(plank, plankMat, nPl);
+    const m4 = new THREE.Matrix4();
+    const quat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    const one = new THREE.Vector3(1, 1, 1);
+    for (let k = 0; k < nPl; k++) {
+      const u = -len / 2 + (k + 0.5) * (len / nPl);
+      m4.compose(new THREE.Vector3(f.x + b.ux * u, f.height + 0.01, f.z + b.uz * u), quat, one);
+      planks.setMatrixAt(k, m4);
+    }
+    planks.receiveShadow = true;
+    group.add(planks);
+    decks.push(
+      world.createCollider(
+        RAPIER.ColliderDesc.cuboid(deckW / 2, SLAB / 2, len / 2)
+          .setTranslation(f.x, f.height - SLAB / 2, f.z)
+          .setRotation(q)
+          .setFriction(0.9)
+          .setRestitution(0.05)
+          .setCollisionGroups(GROUP.STATIC),
+      ),
+    );
+    // Railings: striped barriers along both edges with a flag pole (the bunting colour) at each corner.
+    const railTex = stripeTexture(pal.wallA, pal.wallB);
+    railTex.repeat.set(len / 2, 1);
+    const railMat = new THREE.MeshLambertMaterial({ map: railTex });
+    const poleMat = new THREE.MeshLambertMaterial({ color: '#f4f1ea' });
+    const flagMat = new THREE.MeshLambertMaterial({ color: pal.flag, side: THREE.DoubleSide });
+    for (const sgn of [-1, 1]) {
+      const v = sgn * (f.width / 2 + 0.25);
+      const cx = f.x + b.uz * v;
+      const cz = f.z - b.ux * v;
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.0, len), [railMat, railMat, under, under, under, under]);
+      rail.position.set(cx, f.height + 0.5, cz);
+      rail.rotation.y = yaw;
+      rail.castShadow = true;
+      group.add(rail);
+      rails.push(
+        world.createCollider(
+          RAPIER.ColliderDesc.cuboid(0.25, 1.1, len / 2)
+            .setTranslation(cx, f.height + 0.5, cz)
+            .setRotation(q)
+            .setFriction(0.2)
+            .setRestitution(0.45)
+            .setCollisionGroups(GROUP.STATIC),
+        ),
+      );
+      for (const end of [-1, 1]) {
+        const px = cx + b.ux * end * (len / 2);
+        const pz = cz + b.uz * end * (len / 2);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6), poleMat);
+        pole.position.set(px, f.height + 1.2, pz);
+        const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), flagMat);
+        flag.position.set(px + 0.45, f.height + 2.15, pz);
+        group.add(pole, flag);
+      }
+    }
+  }
+  return { group, decks, rails };
 }
 
 export function buildTrack(t: TrackData, world: RAPIER.World): Track {
@@ -499,7 +688,11 @@ export function buildTrack(t: TrackData, world: RAPIER.World): Track {
     ...mudMeshes(t, grid),
   );
   const ground = addHeightfield(world, grid);
-  const walls = addWalls(world, grid, t.walls);
+  const frames = t.features.filter((f): f is BridgeFeature => f.type === 'bridge').map(bridgeFrame);
+  const br = bridges(t, world, frames);
+  group.add(br.group);
+  // Railings count as walls (impact sounds, the AI's nose-in check).
+  const walls = [...addWalls(world, grid, t.walls), ...br.rails];
   const bounds = new THREE.Box3();
   for (const w of t.walls) for (const [x, z] of w.points) bounds.expandByPoint(new THREE.Vector3(x, sampleHeight(grid, x, z), z));
   bounds.min.y = Math.min(bounds.min.y, -0.5);
@@ -526,6 +719,17 @@ export function buildTrack(t: TrackData, world: RAPIER.World): Track {
     lights: tower.lights,
     flagman: tower.flagman,
     heightAt: (x, z) => sampleHeight(grid, x, z),
+    levelAt: (x, z, heading) => {
+      for (const b of frames) {
+        if (!onDeck(b, x, z, 0.5)) continue;
+        const along = Math.abs(Math.cos(heading - b.f.heading));
+        const across = Math.abs(Math.cos(heading - (b.f as BridgeFeature).under.heading));
+        if (along >= across) return (b.f as BridgeFeature).height;
+      }
+      return sampleHeight(grid, x, z);
+    },
+    decks: br.decks,
+    bridges: frames,
     surface,
   };
 }
