@@ -1,9 +1,11 @@
 // Builds every model declared in ssg.models.json through the Synty Sprite Generator CLI (never its code):
 //   npm run assets
 // runs `ssg model apply ssg.models.json --out public/models --json`, which exports each model as a GLB plus its
-// .model.json manifest and writes public/models/models.json (incremental: only changed specs are rebuilt).
-// Until the generator ships `ssg model` (TODO "3D models + Off Road", M2) this prints a notice and exits 0, and the
-// game draws placeholder trucks and props (OR-FB-001).
+// .model.json manifest and writes public/models/models.json (incremental: only changed specs are downloaded).
+// The CLI prints a line per model on stderr and, with --json, a summary on stdout:
+//   { dir, index, models: [{ name, id, action: 'written'|'updated'|'unchanged', cached, glb, manifest }] }
+// Without an `ssg model` command (an old generator) it prints a notice and exits 0; the game then draws placeholder
+// trucks and props.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -39,5 +41,12 @@ if (r.status !== 0) {
   console.error(json ? JSON.stringify(json, null, 2) : r.stdout);
   process.exit(1);
 }
-console.log(json ? JSON.stringify(json, null, 2) : r.stdout);
+if (!json?.models) {
+  console.log(r.stdout);
+} else {
+  const by = {};
+  for (const m of json.models) by[m.action] = (by[m.action] ?? 0) + 1;
+  const kb = json.models.reduce((n, m) => n + (fs.existsSync(path.join(out, m.glb)) ? fs.statSync(path.join(out, m.glb)).size : 0), 0) / 1024;
+  console.log(`assets: ${json.models.length} models (${Object.entries(by).map(([a, n]) => `${n} ${a}`).join(', ')}), ${(kb / 1024).toFixed(1)} MB of GLBs`);
+}
 console.log(`assets: built into ${path.relative(root, out)}/`);
