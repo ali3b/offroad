@@ -2,7 +2,7 @@
 // README GIF.
 //   node scripts/trailer.mjs [url]              record every take, then cut (the dev server must be running)
 //   node scripts/trailer.mjs [url] --cut-only   re-cut from the takes already in test-results/video/takes
-//   node scripts/trailer.mjs [url] --take=main  re-record one take (main | buzzard | thunder | twister | drycreek | dos);
+//   node scripts/trailer.mjs [url] --take=main  re-record one take (main | buzzard | thunder | twister | drycreek | dos | mobile);
 //                                               then --cut-only.  --keep-raw keeps Playwright's raw webm files.
 // Output: test-results/video/offroad-trailer.mp4, offroad-short.mp4, offroad.gif (git-ignored; Pages carries them).
 //
@@ -16,7 +16,10 @@
 // measured from the countdown beeps (about 75 ms). Game events (countdown,
 // jumps, nitros, splashes, bumps, screens) are logged on the same wall clock, and the cut list picks its windows
 // from them (the race's best action, the moment a truck crosses each track's feature).
-import { chromium } from '@playwright/test';
+// The 'mobile' take is an emulated phone (iPhone 13 landscape, touch): an autopilot race with fingers on GAS, the
+// steer pad following the truck's turns and NITRO taps, so the touch controls show; the cut puts it in a phone
+// outline (a PNG drawn by the browser) over a blurred copy of itself: PLAY ON YOUR PHONE.
+import { chromium, devices } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,7 +49,9 @@ const TRACK_TAKES = {
   twister: { track: 'twister', feature: [0, -2], caption: 'TWISTER FLATS', sub: 'THE JUMP CROSSING' },
   drycreek: { track: 'drycreek', feature: [-5, 9], caption: 'DRY CREEK SPIRAL', sub: 'THE CREEK AND THE BRIDGE' },
 };
-const TAKES = ['main', ...Object.keys(TRACK_TAKES), 'dos'];
+const TAKES = ['main', ...Object.keys(TRACK_TAKES), 'dos', 'mobile'];
+/** The phone take: CSS viewport = the recorded video size (Playwright records CSS pixels, not device pixels). */
+const PHONE = { w: 844, h: 390, track: 'rattlesnake' };
 
 let browser;
 let mode = 'egl';
@@ -142,17 +147,24 @@ function pageKit() {
 
 async function recordTake(name) {
   fs.mkdirSync(rawDir, { recursive: true });
-  const context = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: rawDir, size: { width: W, height: H } } });
+  const phone = name === 'mobile';
+  const context = await browser.newContext(
+    phone
+      ? { userAgent: devices['iPhone 13 landscape'].userAgent, viewport: { width: PHONE.w, height: PHONE.h }, screen: { width: PHONE.w, height: PHONE.h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, recordVideo: { dir: rawDir, size: { width: PHONE.w, height: PHONE.h } } }
+      : { viewport: { width: W, height: H }, recordVideo: { dir: rawDir, size: { width: W, height: H } } },
+  );
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   const tt = TRACK_TAKES[name];
-  const q = name === 'main' ? '/' : name === 'dos' ? '/?scene=race&track=mesa&autopilot' : `/?scene=race&track=${tt.track}&autopilot`;
+  const q = name === 'main' ? '/' : name === 'dos' ? '/?scene=race&track=mesa&autopilot' : phone ? `/?scene=race&track=${PHONE.track}&autopilot` : `/?scene=race&track=${tt.track}&autopilot`;
   await page.goto(url + q); // a fresh context: no saved season or settings
   await page.waitForFunction(() => window.__or?.ready === true, null, { timeout: 90000 });
   await page.evaluate(pageKit);
-  await page.keyboard.press('Control'); // a real key press unlocks the AudioContext
+  // A real key press unlocks the AudioContext (on the phone a tap: a key would hide the touch controls).
+  if (phone) await page.touchscreen.tap(PHONE.w / 2, PHONE.h / 2);
+  else await page.keyboard.press('Control');
   await page.waitForTimeout(500);
   const recStart = await page.evaluate(() => window.__trailer.start());
   const wait = (ms) => page.waitForTimeout(ms);
@@ -170,6 +182,8 @@ async function recordTake(name) {
     await until(() => window.__or.flow.state().screen === 'register');
     await mark('cue', { at: 'register' });
     await wait(1000);
+    await page.keyboard.press('Enter'); // join (the arrows player's panel)
+    await wait(700);
     for (const k of ['KeyA', 'KeyC', 'KeyE']) {
       await page.keyboard.press(k);
       await wait(550);
@@ -181,7 +195,9 @@ async function recordTake(name) {
       await wait(650);
     }
     await mark('cue', { at: 'signed' });
-    await page.keyboard.press('Enter'); // yellow
+    await page.keyboard.press('Enter'); // yellow: READY
+    await wait(900);
+    await page.keyboard.press('Enter'); // ALL SET: start the season
     await until(() => window.__or.flow.state().screen === 'race', null, 30000);
     await page.evaluate(() => window.__or.autopilot(true));
     await until(() => window.__or.flow.state().screen === 'results', null, 240000);
@@ -199,6 +215,36 @@ async function recordTake(name) {
     await wait(900);
     await page.keyboard.press('Enter');
     await wait(2500);
+  } else if (phone) {
+    // The autopilot drives; the fingers show it: GAS held, the steer pad sliding with the truck's turns, NITRO taps.
+    await until(() => window.__trailer.log.some((e) => e.type === 'countdown' && e.n === 0), null, 30000);
+    const cdp = await context.newCDPSession(page);
+    const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p) => ({ radiusX: 8, radiusY: 8, force: 1, ...p })) });
+    const rc = await page.evaluate(() => Object.fromEntries(['pad', 'gas', 'nitro'].map((k) => {
+      const r = document.querySelector(`.or-tc .${k}`).getBoundingClientRect();
+      return [k, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }];
+    })));
+    const gas = { id: 1, x: rc.gas.x, y: rc.gas.y };
+    const pad = (s) => ({ id: 2, x: rc.pad.x + s * rc.pad.w * 0.42, y: rc.pad.y });
+    await touch('touchStart', [gas]);
+    await wait(250);
+    await touch('touchStart', [gas, pad(0)]);
+    let last = await page.evaluate(() => window.__or.truck().heading);
+    let steer = 0;
+    const t0 = Date.now();
+    for (let i = 0; Date.now() - t0 < 16000; i++) {
+      await wait(120);
+      const h = await page.evaluate(() => window.__or.truck().heading);
+      const d = Math.atan2(Math.sin(h - last), Math.cos(h - last));
+      last = h;
+      // A right turn makes the heading fall: the thumb slides right. Smoothed so it glides rather than jumps.
+      steer += (Math.max(-1, Math.min(1, -d * 6)) - steer) * 0.5;
+      const fingers = [gas, pad(steer)];
+      if (i % 30 === 12) await touch('touchStart', [...fingers, { id: 3, x: rc.nitro.x, y: rc.nitro.y }]);
+      else if (i % 30 === 15) await touch('touchMove', fingers); // the NITRO finger lifts (CDP diffs the points)
+      else await touch('touchMove', i % 30 > 12 && i % 30 < 15 ? [...fingers, { id: 3, x: rc.nitro.x, y: rc.nitro.y }] : fingers);
+    }
+    await touch('touchEnd', []);
   } else {
     // A standalone autopilot race: the grid, the countdown, ~35 s of racing.
     await until(() => window.__trailer.log.some((e) => e.type === 'countdown' && e.n === 0), null, 30000);
@@ -381,6 +427,48 @@ function endCard(out, dur, bgTake, bgAt, audioTake, audioAt) {
     '-map', '[v]', '-map', '[a]', '-t', String(dur), '-ar', '48000', '-r', String(FPS), '-c:v', 'libx264', '-crf', '12', '-preset', 'fast', '-c:a', 'aac', '-b:a', '192k', out);
 }
 
+/** The phone outline: a rounded body with a transparent screen, side buttons and a camera dot (drawn by the browser). */
+const PH = { screenW: 1280, bezel: 30, pad: 30 };
+PH.screenH = Math.round((PH.screenW * PHONE.h) / PHONE.w);
+PH.x = Math.round((W - PH.screenW) / 2);
+PH.y = H - PH.screenH - PH.bezel - 26;
+async function phoneFrame(file) {
+  const bw = PH.screenW + 2 * PH.bezel;
+  const bh = PH.screenH + 2 * PH.bezel;
+  const env = { ...process.env };
+  delete env.DISPLAY;
+  delete env.WAYLAND_DISPLAY;
+  const b = await chromium.launch({ env, args: ['--headless=new', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const p = await b.newPage({ viewport: { width: bw + 2 * PH.pad, height: bh + 2 * PH.pad } });
+  await p.setContent(`<html><body style="margin:0;background:transparent">
+    <div style="position:absolute;left:${PH.pad}px;top:${PH.pad}px;width:${PH.screenW}px;height:${PH.screenH}px;border:${PH.bezel}px solid #16171c;border-radius:${PH.bezel + 44}px;box-shadow:0 0 0 3px #4a4e5a,0 0 0 5px #0a0a0c,0 18px 40px rgba(0,0,0,.55),inset 0 0 0 2px #000"></div>
+    <div style="position:absolute;left:${PH.pad + 11}px;top:${PH.pad + bh / 2 - 7}px;width:14px;height:14px;border-radius:50%;background:#050608;box-shadow:inset 0 0 0 3px #1f2330"></div>
+    ${[[220, 90], [340, 60], [420, 60]].map(([x, w]) => `<div style="position:absolute;left:${PH.pad + x}px;top:${PH.pad - 8}px;width:${w}px;height:6px;border-radius:3px 3px 0 0;background:#3a3e48"></div>`).join('')}
+  </body></html>`, { waitUntil: 'domcontentloaded' });
+  await p.screenshot({ path: file, omitBackground: true });
+  await b.close();
+}
+
+/** A stretch of the phone take inside the phone outline, over a blurred, darkened copy of itself; a centred caption. */
+function phoneClip(out, start, dur, frame, text, sub) {
+  const src = path.join(takeDir, 'mobile.mp4');
+  const fade = `alpha='if(lt(t,0.25),t/0.25,if(gt(t,${(dur - 0.3).toFixed(2)}),max(0,(${dur.toFixed(2)}-t)/0.3),1))'`;
+  const cap = [
+    text && `drawtext=fontfile='${FONT}':text='${esc(text)}':fontsize=34:fontcolor=#ffd23c:x=(w-text_w)/2:y=44:box=1:boxcolor=#0b2340@0.9:boxborderw=14:shadowcolor=#000000:shadowx=3:shadowy=3:${fade}`,
+    sub && `drawtext=fontfile='${FONT}':text='${esc(sub)}':fontsize=17:fontcolor=#ffffff:x=(w-text_w)/2:y=104:box=1:boxcolor=#0b2340@0.9:boxborderw=10:${fade}`,
+  ].filter(Boolean).join(',');
+  const fc = [
+    `[0:v]split[a][b]`,
+    `[a]scale=-2:${H},crop=${W}:${H},boxblur=18:2,eq=brightness=-0.28:saturation=0.6,setsar=1[bg]`,
+    `[b]scale=${PH.screenW}:${PH.screenH}:flags=lanczos,setsar=1[fg]`,
+    `[bg][fg]overlay=${PH.x}:${PH.y}[s]`,
+    `[s][1:v]overlay=${PH.x - PH.bezel - PH.pad}:${PH.y - PH.bezel - PH.pad}${cap ? `,${cap}` : ''},format=yuv420p[v]`,
+    `[0:a]loudnorm=I=-17:TP=-1.5:LRA=9,afade=t=in:d=0.12,afade=t=out:st=${(dur - 0.2).toFixed(2)}:d=0.2,aformat=sample_rates=48000:channel_layouts=stereo[a2]`,
+  ].join(';');
+  ff('-ss', start.toFixed(3), '-t', dur.toFixed(3), '-i', src, '-i', frame, '-filter_complex', fc, '-map', '[v]', '-map', '[a2]', '-t', dur.toFixed(3), '-ar', '48000', '-r', String(FPS),
+    '-c:v', 'libx264', '-crf', '12', '-preset', 'fast', '-c:a', 'aac', '-b:a', '192k', out);
+}
+
 function concat(clips, out, crf, maxrate) {
   const list = path.join(outDir, 'parts', `${path.basename(out)}.txt`);
   fs.writeFileSync(list, clips.map((c) => `file '${c}'`).join('\n'));
@@ -388,10 +476,16 @@ function concat(clips, out, crf, maxrate) {
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out);
 }
 
-function cut() {
+async function cut() {
   const parts = path.join(outDir, 'parts');
   fs.rmSync(parts, { recursive: true, force: true });
   fs.mkdirSync(parts, { recursive: true });
+  const frame = path.join(parts, 'phone-frame.png');
+  await phoneFrame(frame);
+  const mob = load('mobile').log;
+  const mobGo = ev(mob, 'countdown', (e) => e.n === 0)[0]?.t ?? 4;
+  const mobAt = bestWindow(mob, mobGo + 1.5, Math.min(mobGo + 16, Math.max(...mob.map((e) => e.t))), 6);
+  console.log(`cut: mobile window ${mobAt.toFixed(1)} (GO ${mobGo.toFixed(1)})`);
   const main = load('main').log;
   const cue = (at) => ev(main, 'cue', (e) => e.at === at)[0].t;
   // The season race (the title's demo race sends countdowns and finishes too).
@@ -427,6 +521,9 @@ function cut() {
   const dos = load('dos').log;
   const d256 = ev(dos, 'cue', (e) => e.at === 'dos256')[0].t;
   add('dos', 'dos', d256 - 1.2, 10.4, 'F2: THE DOS LOOK', '256 COLOURS, 16 COLOURS, SCANLINES');
+  const phoneF = path.join(parts, `${String(segs.length).padStart(2, '0')}-phone.mp4`);
+  phoneClip(phoneF, mobAt, 6, frame, 'PLAY ON YOUR PHONE', 'TOUCH CONTROLS, ADD IT TO YOUR HOME SCREEN');
+  segs.push({ key: 'phone', f: phoneF, dur: 6 });
   const endF = path.join(parts, '99-end.mp4');
   endCard(endF, 7, 'main', raceAction + 6, 'main', 9);
   segs.push({ key: 'end', f: endF, dur: 7 });
@@ -448,6 +545,9 @@ function cut() {
   const bz = load('buzzard').log;
   addS('buzzard', 'buzzard', featureWindow(bz, TRACK_TAKES.buzzard.feature, 5, 9) + 2.5, 3.2, 'BUZZARD BEND', '8 TRACKS, FORWARD AND REVERSED');
   addS('dos', 'dos', d256 + 4.4, 2.6, 'F2: THE DOS LOOK');
+  const phoneS = path.join(parts, `short-${String(short.length).padStart(2, '0')}-phone.mp4`);
+  phoneClip(phoneS, mobAt + 1, 3, frame, 'PLAY ON YOUR PHONE');
+  short.push(phoneS);
   const endS = path.join(parts, 'short-99-end.mp4');
   endCard(endS, 4, 'main', raceAction + 6, 'main', 9);
   short.push(endS);
@@ -480,4 +580,4 @@ if (!cutOnly) {
   if (!args.includes('--keep-raw')) fs.rmSync(rawDir, { recursive: true, force: true });
   console.log(`recorded on ${mode}`);
 }
-if (!onlyTake || cutOnly) cut();
+if (!onlyTake || cutOnly) await cut();
