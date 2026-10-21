@@ -86,7 +86,8 @@ export class AiDriver {
     let vPlan = Infinity;
     for (let d = 0; d <= 10 + Math.max(0, v) * 1.6; d += 1.5) {
       const kap = Math.max(this.line.curvatureAt(this.s + d), 1e-3);
-      const vc = Math.sqrt(k.cornerGrip / kap);
+      // Better tyres (shop) let the driver trust a little more grip.
+      const vc = Math.sqrt((k.cornerGrip * Math.sqrt(truck.mods.grip)) / kap);
       vPlan = Math.min(vPlan, Math.sqrt(vc * vc + 2 * BRAKE_DECEL * d));
     }
     const pace = (ctx.racing ? k.pace * ctx.rubber : 0.55) * truck.topSpeed();

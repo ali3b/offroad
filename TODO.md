@@ -57,12 +57,17 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 
 ## OR3 · Season and shop
 - [ ] All 8 tracks
-- [ ] The money and upgrade shop; upgrades change TUNING (acceleration, tires = grip, shocks = suspension, top speed)
-- [ ] Race progression with rising CPU difficulty, continues, high scores saved locally
+- [x] The money and upgrade shop; upgrades change TUNING (acceleration, tires = grip, shocks = suspension, top speed)
+      (Speed Shop screen, `TruckMods` per truck via `Truck.setMods`, prices / levels / nitro-per-buy in docs/DESIGN.md)
+- [x] Race progression with rising CPU difficulty, continues, high scores saved locally (the cycle rotation with
+      reversed variants from `TRACK_ORDER`, CPU trucks shop with their winnings + pace bonus, 3 credits, FREE RACE,
+      CONTINUE? 9 s → cash $0, game over; `or.season` save + CONTINUE SEASON; per-track `or.records`;
+      `scripts/season-check.mjs`, vitest unit tests)
 - [ ] Video + Pages deploy
 
 ## OR4 · Presentation
-- [ ] Title / attract mode with a demo race
+- [x] Title / attract mode with a demo race (our DOS-style logo, the demo race behind it, hints in the attract loop,
+      racing hints, driver sign-up with initials + colour, get ready; title is the default scene)
 - [ ] Podium with animated drivers (a multi-clip character GLB from the generator)
 - [ ] A crowd in the stands; our own chiptune-style music; engine, skid and crash sounds
 - [ ] Local 2-player (keyboard + pad)

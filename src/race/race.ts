@@ -111,7 +111,17 @@ export class Race {
   /** Called when a pickup is collected (floating text). */
   onPickup: (text: string, x: number, y: number, z: number, slot: number) => void = () => {};
 
-  constructor(readonly session: Session) {
+  /** Season races start with these nitros per slot (else the page-session carry-over). */
+  private startNitros: number[] | null;
+  /** False for the title screen's demo race (CPU laps never become track records). */
+  private saveRecords: boolean;
+
+  constructor(
+    readonly session: Session,
+    opts: { nitros?: number[]; saveRecords?: boolean } = {},
+  ) {
+    this.startNitros = opts.nitros ?? null;
+    this.saveRecords = opts.saveRecords ?? true;
     const t = session.track;
     if (!t.line || !t.data.gates?.length) throw new Error(`track "${t.data.id}" has no racing line or gates`);
     this.laps = t.data.laps ?? 4;
@@ -156,7 +166,7 @@ export class Race {
     this.pickups = new Pickups(this.line, s.track.heightAt, 15, 7 + Math.floor(Math.random() * 1000));
     this.session.scene.add(this.pickups.group);
     s.racers.forEach((r, i) => {
-      r.truck.nitros = carry[i] ?? (i === 0 ? START_NITROS.player : START_NITROS.cpu);
+      r.truck.nitros = this.startNitros?.[i] ?? carry[i] ?? (r.entry.human || i === 0 ? START_NITROS.player : START_NITROS.cpu);
       const st = this.states[i];
       const p = r.truck.body.translation();
       Object.assign(st, { lap: 0, nextGate: 0, started: false, finished: false, finishTime: null, place: 0, lapStart: 0, lapTimes: [], bags: 0, prev: { x: p.x, z: p.z } });
@@ -327,9 +337,9 @@ export class Race {
     });
     // Track record: the fastest finish time by anyone, kept in localStorage (or.records).
     const fastest = this.results.filter((r) => r.time !== null).sort((a, b) => a.time! - b.time!)[0];
-    if (fastest && (!this.record || fastest.time! < this.record.time)) {
+    if (this.saveRecords && fastest && (!this.record || fastest.time! < this.record.time)) {
       const e = s.racers[fastest.slot].entry;
-      this.record = { time: Math.round(fastest.time! * 100) / 100, who: fastest.slot === 0 ? 'YOU' : e.nick };
+      this.record = { time: Math.round(fastest.time! * 100) / 100, who: e.human ? e.nick : fastest.slot === 0 ? 'YOU' : e.nick };
       this.newRecord = true;
       const all = loadRecords();
       all[s.track.data.id] = this.record;
@@ -337,6 +347,24 @@ export class Race {
     }
     s.racers.forEach((r, i) => (carry[i] = r.truck.nitros));
     this.setPhase('results');
+  }
+
+  /**
+   * Tests only (season-check): end the race now with the given finishing order (slots, winner first), as if they had
+   * crossed the line in that order. Lap times stay whatever was driven.
+   */
+  forceFinish(order: number[]) {
+    if (this.phase === 'results') return;
+    this.finishedCount = 0;
+    for (const slot of order) {
+      const st = this.states[slot];
+      // A truck that really finished keeps its time; the others get none (so no track record from a forced end).
+      if (!st.finished) st.finishTime = null;
+      st.finished = true;
+      st.place = ++this.finishedCount;
+    }
+    this.phase = 'racing';
+    this.finishRace();
   }
 
   /** Race-time snapshot for the test handle. */

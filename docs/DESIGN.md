@@ -7,7 +7,16 @@ possible, in real 3D, with our own names, art and music. Public text says only "
 
 ```
 src/
-  main.ts            boot: renderer, Rapier world, scene from ?scene=, camera fit, loop, HUD, window.__or
+  main.ts            boot: renderer, RAPIER.init, truck models, audio bridge, then the Flow on ?scene=
+  game/
+    flow.ts          the screen flow (title → hints → sign-up → get ready → race → results → shop / continue),
+                     the one Loop, window.__or handles that follow the current scene
+    race-scene.ts    one track on screen: its own three.js scene + Rapier world, Session, Race, HUD, results, camera
+    season.ts        season state (players, CPU trucks, cash, credits, levels, nitros), line-up, rotation lookup,
+                     settleRace(), the or.season save
+    economy.ts       prices, levels, upgrade → TruckMods, buy(), CPU shopping, credits / FREE RACE / continue
+    rotation.ts      raceAt(n, race): the cycle rotation (pure)
+    *.test.ts        vitest unit tests (npm test)
   engine/
     renderer.ts      WebGLRenderer (sRGB, PCF soft shadows), scene, hemisphere + low sun
     camera.ts        the fixed whole-track camera (CAMERA: pitch, fov, margins) and fitFixedCamera()
@@ -40,18 +49,24 @@ src/
   ui/
     pixel.ts         the bundled pixel font (Press Start 2P) and a style helper
     race-hud.ts      the one-panel race HUD, the track name, centre banners, floating pickup texts
-    results.ts       the podium / results screen
+    results.ts       the podium / results screen (season: FREE RACE! / CREDIT LOST, credits, the shop prompt)
     debug.ts         F3 overlay
+    screens/         full-screen menus: common (DOS look, panels, icons), title, hints, register (+ get ready),
+                     shop, continue (+ game over), track-thumb (a 2D map of a track from its JSON)
 ```
 
 ### Boot and scenes
-`main.ts` reads `?scene=` (unknown scenes throw so the load check fails loudly):
-- `test` (default): the player's truck alone on `?track=` (default `test`, the proving ground). R resets.
+`main.ts` reads `?scene=` (unknown scenes throw so the load check fails loudly) and hands over to `game/flow.ts`:
+- `title` (default when there's no `?scene`): the title / attract screen and the season (see "Season and flow").
+- `shop`: the Speed Shop straight away, on the saved season or a fresh one (`&cash=` default 250000, `&race=`
+  default 1, `&colour=`); for checks.
+- `test`: the player's truck alone on `?track=` (default `test`, the proving ground). R resets.
 - `race`: a 4-truck race on `?track=` (default `rattlesnake`). `&reverse` drives the reversed variant, `&cpus=0..3`
   races fewer CPU trucks (tuning), `&autopilot` lets the AI drive the player's truck (tests, demos).
 
-`?debug` opens the F3 overlay. When everything is built it runs a little physics so the trucks settle on their
-springs, starts the loop and sets `window.__or.ready`.
+`?debug` opens the F3 overlay. Every race scene runs a little physics when it's built (0.5 s; 1 s on the proving
+ground) so the trucks settle on their springs; the loop starts and `window.__or.ready` is set once the first scene
+or screen is up.
 
 ### Loop
 Physics always steps at 1/60 s. A render frame runs as many steps as the elapsed time needs, at most 6; beyond that
@@ -118,7 +133,9 @@ The HUD sits in the notch above the top-right lane like the original's. Racing l
   ground and walls (collision groups), never another truck's roof.
 - Four raycast wheels (radius 0.5, rest 0.55, travel 0.45): stiffness 34, compression 3.2, relaxation 4.2. 4WD
   engine force 5200 N per wheel with a quadratic taper to the top speed (25 m/s, nitro 32), brakes 60, reverse when
-  nearly stopped. `Truck.power` scales force and top speed (the grey boss runs 1.05; OR3's shop upgrades).
+  nearly stopped. `Truck.power` scales force and top speed (the grey boss runs 1.05). `Truck.mods` (`TruckMods`,
+set with `setMods()`) carries the shop upgrades as multipliers on engine force, top speed, grip, suspension
+stiffness and damping and the upright recovery ("Season and flow" has the table).
 - Arcade assists after `updateVehicle()` and before `world.step()`, as direct velocity edits (mass-independent, easy
   to tune):
   - lateral grip boost: bleed sideways velocity at `lateralGrip` (4)/s × surface grip × wheels on the ground;
@@ -160,10 +177,11 @@ from Rapier contacts. Revisit only if OR3's upgrades (tires, shocks) can't be ex
 - **Finish**: places in crossing order; finished trucks drive a gentle cool-down. The race ends when all four are
   in, or 25 s after the player finishes (stragglers ranked by progress), or after 300 s.
 - **Results**: the podium screen: the player's finish time and the track record, then a plate per truck with
-  place, prize (100K / 90K / 80K / 70K) plus money bags, driver, time, average and best lap. Enter / pad A
-  restarts with Get Ready!. The record (fastest finish by anyone) is kept in localStorage `or.records`
+  place, prize (100K / 90K / 80K / 70K) plus money bags, driver, time, average and best lap. In a standalone race
+  Enter / pad A restarts with Get Ready!; in the season it goes on to the shop. The record (fastest finish by anyone) is kept in localStorage `or.records`
   (`{ "<trackId>": { time, who } }`, reversed variants as `<id>-r`).
-- **Nitros**: 25 for the player, 10 per CPU truck; leftovers carry into the next race (page session).
+- **Nitros**: 25 for the player, 10 per CPU truck; leftovers carry into the next race (page session; in the season
+  the player's are saved with the season and the CPU trucks start each race with 10).
 - **Pickups**: about one drop per lap (every ~13–18 s) on a random spot of the racing line ≥ 15 m from every truck,
   money or nitro; values escalate per kind as they're collected (10K → 20K → 30K, 1 → 2 nitros). Any truck can
   collect them; a floating text shows the value.
@@ -179,12 +197,14 @@ from Rapier contacts. Revisit only if OR3's upgrades (tires, shocks) can't be ex
   steering flipped so the nose swings towards the line. No progress for 6 s, or > 14 m off the line → put back on
   the line (also when a truck is outside the outer wall).
 - Skills: yellow BUCKSHOT Billy Kade (pace 0.90), blue ROWDY Rita Vance (0.93), grey STEEL Hank Dorsey (1.0, power
-  1.05: the boss). The player's autopilot is 0.97.
+  1.05: the boss); red DUSTY Dot Marlow (0.915) races when the player picks another colour. The player's autopilot
+  is 0.97.
 
 ### Events (`race/events.ts`)
 A typed bus the audio lane subscribes to (`events.on(type, fn)`): `engine` (per truck per frame: rpm 0..1, throttle,
 speed, nitro), `impact` (wall / truck / ground, strength 0..1, from Rapier contact-force events), `skid`, `splash`
-(water / mud), `nitro`, `land`, `countdown` (3, 2, 1, 0 = GO), `lap`, `finish`, `pickup`, `phase`.
+(water / mud), `nitro`, `land`, `countdown` (3, 2, 1, 0 = GO), `lap`, `finish`, `pickup`, `phase`, and the flow's
+`screen` (see "Season and flow").
 
 ### Effects
 - `fx/particles.ts`: one instanced billboard mesh (InstancedBufferGeometry + a tiny shader, one draw call), up to
@@ -206,8 +226,11 @@ GO!, "1ST PLACE!") and floating pickup texts in the same pixel font (Press Start
 airTime, nitros, inWater, surface, slip, resets), `raceState()` (phase, clock, per-truck lap / next gate / place /
 lap times / nitros / bags / progress, results, record, pickups), `autopilot(on)`, `restart()`,
 `resultsVisible()`, `setInput(partial | null)`, `reset()`, `place(x, z, heading)`, `advance(s)`, `debug(on)`,
-`groundCheck()`, `heightAt(x, z)`, `line()`, plus `tuning`, `camera`, `loop`, `session`, `race`, `events`, `models`,
-`THREE` and `RAPIER` for live tuning.
+`groundCheck()`, `heightAt(x, z)`, `line()`, `mods()` (each truck's upgrade multipliers), plus `tuning`, `camera`,
+`loop`, `session`, `race`, `events`, `models`, `THREE` and `RAPIER` for live tuning. `session` / `race` follow the
+current scene (null on a menu screen). `flow`: `state()` (screen, race index, next race, player cash / credits /
+levels / nitros, last outcome, shop cursor), `press(key | {letter})`, `tick(s)` (menu clocks), `forceFinish(order)`,
+`patchPlayer(patch)`, `season()`, `order()`, `raceFor(i)`, `text()`.
 
 ### Checks
 - `scripts/load-check.mjs <url> test|race`: boots the scene, no errors, ground ↔ grid, trucks on four wheels.
@@ -215,8 +238,116 @@ lap times / nitros / bags / progress, results, record, pickups), `autopilot(on)`
 - `scripts/race-check.mjs <url> [track] [--reverse]`: a full 4-lap race with the player on autopilot via
   `advance()`; all four finish, laps counted, events fired, results show prize money and a saved record; Enter
   restarts. Screenshots `test-results/race-<track>-mid.png` and `-results.png`.
+- `scripts/season-check.mjs <url>`: the season through `__or.flow`: title (demo race on autopilot) → hints →
+  sign-up with the default initials → 3 autopilot races (track and direction against the rotation rule written out
+  in the script, cash = prize + bags, credits by the rule, FREE RACE / CREDIT LOST on the podium) with the shop
+  between them (buy tires and a nitro, check the next race's grip multiplier), a reload → CONTINUE SEASON with the
+  same cash, then forced finishes: out of credits → CONTINUE? → continue (cash $0, 3 credits, upgrades kept),
+  FREE RACE!, out of credits → countdown out → GAME OVER → title with the save gone. `test-results/season-*.png`.
+- `npm test`: vitest unit tests of the rotation (the 8-track table, track 8 at race 35, fewer tracks), the shop,
+  credits, continue, CPU shopping and `settleRace`.
+- `scripts/load-check.mjs <url> title|shop`: the title (ground check on the demo race) and the shop (menus only).
 - `scripts/lap-probe.mjs <url> [track] [tuning JSON]`: lap times and speeds alone, for tuning.
 - `scripts/feel-probe.mjs`: acceleration, braking, turn rate, jump and whoops numbers on the proving ground.
+
+## Season and flow (OR3, OR4 title)
+
+### Screens (`game/flow.ts`, `ui/screens/`)
+```
+title (attract) → hints → sign-up → get ready → race → results ┬→ shop → get ready → race → …
+      ↑                                                         └→ continue? ─┬→ shop
+      └──────────────────────────────── game over ←───────────────────────────┘ (countdown ran out / Esc)
+```
+- **Title / attract**: our "OFF ROAD" logo (Press Start 2P with a stacked hard-shadow extrusion, tilted, in the
+  late-80s DOS style), "STADIUM 4X4 TRUCK RACING", a menu (CONTINUE SEASON when `or.season` exists, NEW SEASON), a
+  blinking PRESS START, our credits and "© 2026 Off Road contributors". Behind it a demo race: every truck on the
+  AI, a random direction, the next track in the order each time; no HUD, banners or records, and silent apart from
+  the title song. Left idle for 16 s the screen cycles to the racing hints for 10 s (an arcade attract loop).
+- **Racing hints**: the rules in our own words (laps, FREE RACE, credits, prize money and bags, what each upgrade
+  does, continues) and the controls.
+- **Sign-up**: three colour panels (red, yellow, blue) like the original's join screen. Player 1 enters three
+  initials arcade style (up/down cycles A–Z and space, left/right moves, typing A–Z also works; default "ACE", or
+  the last season's), then picks a colour by moving the card between the panels. The other panels show the CPU
+  driver who takes that colour. The original also asked for a birth date and a country; we skip both.
+  Up to 3 players by design: `SeasonState.players` is an array (1..3, distinct colours, never grey), the line-up puts
+  humans in the first slots, results and credits are per player. Only slot 0 takes input in a race for now (OR4 adds
+  local 2-player).
+- **Get ready**: the player's panel with GET READY!, the race number and a map of the track while the race builds
+  (at least 1.6 s); the race then starts with its own GET READY! / lamps.
+- **Results**: the podium as before, plus FREE RACE! (green) or CREDIT LOST / NO CREDITS LEFT (red), the cash and
+  the credits; Enter / (A) → the shop, or CONTINUE? when the credits are gone.
+- **Speed Shop**: the player's colour panel turns into the shop (CREDITS, CASH, six tiles: NITRO 10K, ACCEL. 80K,
+  TIRES 40K, TOP SPD 100K, SHOCKS 60K with five-box level bars, nitro with a gauge and the count, and START NEXT RACE
+  with a top-down map of the next track and its name, "(R)" when reversed). The other two panels show the CPU
+  drivers' levels and cash; the grey boss's levels run along the bottom. Arrows move over the 2×3 grid, Enter buys
+  or starts; Esc twice saves and quits to the title.
+- **Continue?**: the player's panel with a 9 → 0 countdown (real seconds). Enter / (A) continues: credits back to 3,
+  cash to $0, upgrades and nitros kept. Esc or the countdown running out → GAME OVER (6 s or a press) → the title;
+  the save is deleted.
+
+Menus read input once per frame (`engine/input.ts` `drainMenu()`: keyboard arrows/WASD, Enter/Space, Esc/Backspace,
+letters; every pad's d-pad/stick, A/Start, B/Back, edge-triggered). Key presses made during a race are dropped on
+every screen change (`clearPressed()`), so a held arrow or a stray Enter never acts on the next screen. In a season
+race R does nothing (no restarts to farm prize money); the standalone `?scene=race` keeps R and Enter-to-restart.
+
+Each race gets a fresh `RaceScene` (its own three.js scene and Rapier world); the old one is disposed (truck views
+detached, track/effect geometry, materials and textures disposed, world freed). The renderer is shared. The shop,
+hints, sign-up and continue screens are DOM only (no 3D running).
+
+### Rules and economy (`game/economy.ts`)
+| | Value | Note |
+|---|---|---|
+| Prize money | 100K / 90K / 80K / 70K by place, plus the money bags picked up | the original's table |
+| Start | $0, 3 credits, 25 nitros (CPU trucks 10 each race) | the original's home versions differ (2 or 3 credits); we use 3 |
+| Credit | −1 when any CPU truck finishes ahead of the player | a human ahead doesn't count |
+| FREE RACE! | every CPU truck finished behind the player | no credit used |
+| Out of credits | CONTINUE? 9 s: credits back to 3, cash to $0, upgrades kept | else game over |
+| Prices | Nitro 10K, Acceleration 80K, Tires 40K, Shocks 60K, Top Speed 100K, the same at every level | |
+| Levels | 5 per upgrade (stock = 0); nitro has no levels, at most 99 carried | |
+| Nitro per buy | **1** | a pickup gives 1–2, so 10K for one burst keeps nitro a choice against upgrades |
+| Nitros | the player's carry over from race to race (saved); CPU trucks start each race with 10 | |
+
+**What the upgrades do** (`modsFor(levels)` → `TruckMods`, multipliers on TUNING applied per truck by
+`Truck.setMods()`; `Truck.power` stays the boss's engine factor on top):
+
+| Upgrade | Per level | At 5 | Applied to |
+|---|---|---|---|
+| Acceleration | engine force +7 % | 1.35 | engine force (the taper to top speed stays) |
+| Top Speed | top speed +3.5 % | 1.175 (25 → 29.4 m/s, nitro 32 → 37.6) | `top` in the engine taper, `topSpeed()` (the AI's pace) |
+| Tires | grip +9 % | 1.45 | lateral grip assist, wheel friction slip, yaw rate × (1 + 0.25·(grip − 1)); the AI trusts √grip more corner grip |
+| Shocks | damping +12 %, stiffness +3 %, recovery +12 % | 1.6 / 1.15 / 1.6 | suspension compression + relaxation, stiffness, upright stabilizer and air tumble damping (landing recovery) |
+
+**CPU trucks** bank their prize money too and go shopping after every race (`cpuShop`: the lowest upgrade first,
+ties in the order tires, shocks, accel, top, while the cash lasts), and their pace (share of top speed) rises by
+1 % every 3 races, at most +4 % (`cpuPaceBonus`). So the field gets faster through the season on top of the rubber
+band; the boss keeps its 1.05 power.
+
+### Track rotation (`game/rotation.ts`)
+The original's home-version pattern: cycle 1 is tracks 1–2; every later cycle replays the earlier tracks and adds
+the next one; a track flips direction each time it comes round (track t first appears in cycle
+first(t) = t ≤ 2 ? 1 : t − 1, forwards, and is reversed in cycle c when c − first(t) is odd). Once all n tracks are
+in, every cycle has them all and the alternation goes on forever (no ending, like the original).
+```
+cycle 1: 1  2            cycle 4: 1r 2r 3  4r 5
+cycle 2: 1r 2r 3         …
+cycle 3: 1  2  3r 4      cycle 8: 1r 2r 3  4r 5  6r 7  8r   (track 8 first at race 35)
+```
+`raceAt(n, race)` works for any n ≥ 1. The order is the track registry's `TRACK_ORDER` (tracks 1..8, added by the
+tracks lane) when it exists; until then every registered track with a racing line (today: Rattlesnake Run alone,
+which then alternates forward / reversed). A track without a `reverse` variant is driven forwards.
+
+### Save (`localStorage`)
+- `or.season`: `{ v: 1, race, players: [{ initials, colour, cash, credits, levels, nitros }], cpus: [{ colour,
+  cash, levels, nitros }], last: { track, outcomes, places } }`, written after every race, purchase and continue;
+  deleted on game over. CONTINUE SEASON on the title reopens it at the shop (or at CONTINUE? with no credits).
+- `or.records`: the per-track records as before; the record holder is the player's initials now (the demo race
+  and forced test finishes never set one).
+
+### Audio
+`GameEvents.screen { name }` (title, hints, register, getready, race, results, shop, continue, gameover) goes through
+`audio/bridge.ts`: title / hints / sign-up → the `title` song (not restarted between them), shop → `shop`, continue
+and game over → silence; race and podium music still follow the race phases (each race start picks the next race
+song). While the attract screens are up the bridge drops the demo race's engines, skids, hits and phase music.
 
 ## Models (from the generator)
 `ssg.models.json` lists what the game wants (format: the generator's docs/MODELS.md). `npm run assets`

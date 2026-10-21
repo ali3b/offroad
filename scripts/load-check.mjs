@@ -1,5 +1,7 @@
 // Smoke check: the game boots a scene with no page or console errors and saves test-results/<scene>.png.
 //   node scripts/load-check.mjs [url] [scene]          (npm run dev first; default http://localhost:5199 test)
+// Scenes: test, race (truck + ground checks), title (the demo race behind the logo: ground check), shop (menus only).
+// The game's own default (no ?scene) is the title; this check keeps `test` as its default.
 // Headless Chromium on SwiftShader (software GL): the shared GPU stays free.
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
@@ -27,11 +29,17 @@ try {
   // A few real frames so the HUD and shadows are drawn.
   await page.waitForFunction(() => window.__or.loop.steps > 120, null, { timeout: 30000 });
   await page.waitForTimeout(500);
-  const info = await page.evaluate(() => ({ truck: window.__or.truck(), ground: window.__or.groundCheck(), fps: window.__or.loop.fps }));
-  console.log(`${scene}: truck ${JSON.stringify(info.truck.pos)} contacts ${info.truck.contacts.map(Number).join('')} up.y ${info.truck.up.y.toFixed(3)}; ground error ${info.ground.toFixed(3)} m; ${info.fps.toFixed(0)} fps`);
-  if (!(info.ground < 0.2)) fail(`the physics heightfield does not match the height grid (max error ${info.ground} m)`);
-  if (info.truck.contacts.filter(Boolean).length < 4) fail('the parked truck is not on all four wheels');
-  if (info.truck.up.y < 0.95) fail('the parked truck is not upright');
+  const has3d = await page.evaluate(() => !!window.__or.session);
+  const parked = scene === 'test' || scene === 'race';
+  if (has3d) {
+    const info = await page.evaluate(() => ({ truck: window.__or.truck(), ground: window.__or.groundCheck(), fps: window.__or.loop.fps }));
+    console.log(`${scene}: truck ${JSON.stringify(info.truck.pos)} contacts ${info.truck.contacts.map(Number).join('')} up.y ${info.truck.up.y.toFixed(3)}; ground error ${info.ground.toFixed(3)} m; ${info.fps.toFixed(0)} fps`);
+    if (!(info.ground < 0.2)) fail(`the physics heightfield does not match the height grid (max error ${info.ground} m)`);
+    // Only a parked truck must sit on four wheels (the title's demo race is driving).
+    if (parked && info.truck.contacts.filter(Boolean).length < 4) fail('the parked truck is not on all four wheels');
+    if (parked && info.truck.up.y < 0.95) fail('the parked truck is not upright');
+  } else if (parked) fail('no race scene');
+  else console.log(`${scene}: menu screen "${await page.evaluate(() => window.__or.flow.state().screen)}"`);
   await page.screenshot({ path: `test-results/${scene}.png` });
   console.log(`saved test-results/${scene}.png`);
 } catch (e) {

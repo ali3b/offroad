@@ -94,14 +94,15 @@ export class RaceHud {
     this.name.style.fontSize = `${Math.round(20 * s)}px`;
   }
 
-  update(clock: number, trucks: HudTruck[]) {
-    const key = `${clock.toFixed(1)}|${trucks.map((t) => `${t.lap},${t.nitros}`).join(';')}`;
+  /** `trucks` in HUD colour order (red, yellow, blue, grey); null = that colour isn't racing. */
+  update(clock: number, trucks: (HudTruck | null)[]) {
+    const key = `${clock.toFixed(1)}|${trucks.map((t) => (t ? `${t.lap},${t.nitros}` : '-')).join(';')}`;
     if (key === this.last) return;
     this.last = key;
     this.timer.textContent = clock.toFixed(1);
     trucks.forEach((t, i) => {
-      if (this.lapCells[i]) this.lapCells[i].textContent = String(t.lap);
-      if (this.nitroCells[i]) this.nitroCells[i].textContent = String(t.nitros);
+      if (this.lapCells[i]) this.lapCells[i].textContent = t ? String(t.lap) : '-';
+      if (this.nitroCells[i]) this.nitroCells[i].textContent = t ? String(t.nitros) : '-';
     });
     for (let i = trucks.length; i < 4; i++) {
       this.lapCells[i].textContent = '-';
@@ -143,6 +144,14 @@ export class RaceHud {
         this.floaters.splice(i, 1);
       }
     }
+  }
+
+  dispose() {
+    this.panel.remove();
+    this.name.remove();
+    this.banner.remove();
+    for (const f of this.floaters) f.el.remove();
+    this.floaters = [];
   }
 
   show(on: boolean) {

@@ -66,6 +66,24 @@ export const TUNING = {
   flipped: { upY: 0.25, seconds: 1.4 },
 };
 
+/** Per-truck multipliers on TUNING from the shop upgrades (OR3). 1 everywhere = stock. */
+export interface TruckMods {
+  /** Engine force (Acceleration). */
+  engine: number;
+  /** Top speed, plain and nitro (Top Speed). */
+  topSpeed: number;
+  /** Lateral grip assist, wheel friction slip and a little yaw rate (Tires). */
+  grip: number;
+  /** Suspension stiffness (Shocks). */
+  stiffness: number;
+  /** Suspension compression/relaxation damping (Shocks: less bounce over bumps). */
+  damping: number;
+  /** Upright stabilizer and air tumble damping (Shocks: quicker landing recovery). */
+  recovery: number;
+}
+
+export const STOCK_MODS: Readonly<TruckMods> = { engine: 1, topSpeed: 1, grip: 1, stiffness: 1, damping: 1, recovery: 1 };
+
 export interface TruckState {
   pos: { x: number; y: number; z: number };
   /** Forward speed (m/s, negative when reversing). */
@@ -117,6 +135,8 @@ export class Truck {
   resets = 0;
   /** Engine upgrade factor on force and top speed (1 = stock; the CPU boss runs a little hot; OR3's shop). */
   power = 1;
+  /** Shop upgrade multipliers (set with setMods so the wheel settings follow). */
+  mods: TruckMods = { ...STOCK_MODS };
   private flippedT = 0;
   private nitroHeld = false;
 
@@ -179,6 +199,19 @@ export class Truck {
     this.collider = this.body.collider(0);
   }
 
+  /** Apply shop upgrades: the per-step multipliers plus the wheels' suspension and friction settings. */
+  setMods(m: Partial<TruckMods>) {
+    this.mods = { ...STOCK_MODS, ...m };
+    const T = TUNING;
+    const c = this.controller;
+    for (let i = 0; i < 4; i++) {
+      c.setWheelSuspensionStiffness(i, T.suspension.stiffness * this.mods.stiffness);
+      c.setWheelSuspensionCompression(i, T.suspension.compression * this.mods.damping);
+      c.setWheelSuspensionRelaxation(i, T.suspension.relaxation * this.mods.damping);
+      c.setWheelFrictionSlip(i, (i < 2 ? T.frictionSlip.front : T.frictionSlip.rear) * this.mods.grip);
+    }
+  }
+
   readonly collider: RAPIER.Collider;
 
   /** One fixed physics step's worth of control: call before world.step(). */
@@ -206,7 +239,8 @@ export class Truck {
     this.nitroHeld = input.nitro;
     const boosting = this.nitroT > 0;
     if (boosting) this.nitroT -= dt;
-    const top = (boosting ? T.nitro.topSpeed : T.topSpeed) * this.power;
+    const M = this.mods;
+    const top = (boosting ? T.nitro.topSpeed : T.topSpeed) * this.power * M.topSpeed;
 
     // Steering eases towards the input; less lock at speed.
     const speedT = Math.min(1, Math.abs(fwd) / T.topSpeed);
@@ -219,7 +253,7 @@ export class Truck {
     // Throttle, brake and reverse.
     let engine = 0;
     let brake = 0;
-    if (input.throttle > 0) engine = input.throttle * T.engineForce * this.power * Math.max(0, 1 - (Math.max(0, fwd) / top) ** 2);
+    if (input.throttle > 0) engine = input.throttle * T.engineForce * this.power * M.engine * Math.max(0, 1 - (Math.max(0, fwd) / top) ** 2);
     if (input.brake > 0) {
       if (fwd > 1.5) brake = input.brake * T.brakeForce;
       else engine -= input.brake * T.reverseForce * Math.max(0, 1 - (Math.max(0, -fwd) / T.reverseTopSpeed) ** 2);
@@ -254,13 +288,13 @@ export class Truck {
     if (grounded > 0) {
       // Lateral grip boost: bleed sideways speed (a slide shrinks instead of the tyres snapping).
       const lat = _v.dot(_r);
-      _v.addScaledVector(_r, -lat * (1 - Math.exp(-T.lateralGrip * surf.grip * g * dt)));
+      _v.addScaledVector(_r, -lat * (1 - Math.exp(-T.lateralGrip * M.grip * surf.grip * g * dt)));
       // Rolling drag.
       const fv = _v.dot(_f);
       _v.addScaledVector(_f, -fv * (1 - Math.exp(-T.rollingDrag * g * dt)));
       // Yaw: pull the spin rate towards what the steering asks for (zero with no input = yaw damping).
       const dir = fv >= 0 ? 1 : -1;
-      const wantYaw = -input.steer * T.yawRate * Math.min(1, Math.abs(fv) / 5) * dir;
+      const wantYaw = -input.steer * T.yawRate * (1 + (M.grip - 1) * 0.25) * Math.min(1, Math.abs(fv) / 5) * dir;
       const yaw = _w.dot(_u);
       _w.addScaledVector(_u, (wantYaw - yaw) * (1 - Math.exp(-T.yawAssist * g * dt)));
     } else {
@@ -269,12 +303,12 @@ export class Truck {
       _w.addScaledVector(_r, (input.throttle - input.brake) * T.airPitch * dt);
       const spinY = _w.dot(UP);
       _a.copy(_w).addScaledVector(UP, -spinY);
-      _w.addScaledVector(_a, -(1 - Math.exp(-T.airSpinDamping * dt)));
+      _w.addScaledVector(_a, -(1 - Math.exp(-T.airSpinDamping * M.recovery * dt)));
     }
     // Upright stabilizer: rotate up towards world up (in the air) or the ground normal (on it).
     const wantUp = grounded > 0 && _a.lengthSq() > 0 ? _a.normalize() : UP;
     const axis = new Vector3().crossVectors(_u, wantUp);
-    _w.addScaledVector(axis, (grounded > 0 ? T.uprightGround : T.uprightAir) * dt * 10);
+    _w.addScaledVector(axis, (grounded > 0 ? T.uprightGround : T.uprightAir) * M.recovery * dt * 10);
 
     // Nitro push along the nose.
     if (boosting && _v.dot(_f) < top) _v.addScaledVector(_f, T.nitro.accel * dt * (grounded > 0 ? 1 : 0.4));
@@ -309,7 +343,7 @@ export class Truck {
 
   /** Current top speed (higher during a nitro burst). */
   topSpeed() {
-    return (this.nitroT > 0 ? TUNING.nitro.topSpeed : TUNING.topSpeed) * this.power;
+    return (this.nitroT > 0 ? TUNING.nitro.topSpeed : TUNING.topSpeed) * this.power * this.mods.topSpeed;
   }
 
   /** Engine load 0..1 for sound: speed share of top speed, kicked up by throttle. */
