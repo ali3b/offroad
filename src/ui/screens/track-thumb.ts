@@ -70,9 +70,18 @@ export function trackThumb(t: TrackData, w = 220, h = 140): HTMLCanvasElement {
     }
   }
   for (const z of t.zones) {
-    ellipse(z);
-    g.fillStyle = z.type === 'water' ? '#4f8fc4' : '#553519';
-    g.fill();
+    const colour = z.type === 'water' ? '#4f8fc4' : '#553519';
+    if ('points' in z) {
+      // A creek or channel: a band along a polyline.
+      path(z.points, false);
+      g.strokeStyle = colour;
+      g.lineWidth = Math.max(2, z.width * s);
+      g.stroke();
+    } else {
+      ellipse(z);
+      g.fillStyle = colour;
+      g.fill();
+    }
   }
   // Walls: the outer one thick, inner ones as tyre lines.
   g.lineJoin = 'round';
