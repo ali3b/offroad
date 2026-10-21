@@ -32,7 +32,7 @@ try {
   await page.goto(`${url}/?scene=${encodeURIComponent(scene)}${query}`);
   await page.waitForFunction(() => window.__or?.ready === true, null, { timeout: 90000 });
   // A few real frames so the HUD and shadows are drawn.
-  await page.waitForFunction(() => window.__or.loop.steps > 120, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__or.loop.steps > 120, null, { timeout: Number(process.env.STEP_TIMEOUT ?? 30000) }); // STEP_TIMEOUT=ms on a busy machine
   await page.waitForTimeout(500);
   const has3d = await page.evaluate(() => !!window.__or.session);
   const parked = scene === 'test' || scene === 'race';
