@@ -25,7 +25,7 @@ function buildMix(ctx: BaseAudioContext, out: AudioNode) {
   music.connect(master);
   sfx.connect(master);
   master.connect(limiter).connect(out);
-  return { master, music, sfx };
+  return { master, music, sfx, limiter };
 }
 
 const RACE_SONGS = ['race1', 'race2'];
@@ -73,6 +73,18 @@ export class AudioSystem {
       if (this.wantedSong) this.playSong(this.wantedSong);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  /**
+   * Tools (scripts/trailer.mjs): a MediaStream of the final mix (after the limiter), for recording the game's sound
+   * alongside a video. Unlocks the context if needed; null before it exists.
+   */
+  captureStream(): MediaStream | null {
+    this.unlock();
+    if (!this.ctx || !this.mix) return null;
+    const tap = this.ctx.createMediaStreamDestination();
+    this.mix.limiter.connect(tap);
+    return tap.stream;
   }
 
   // ---- settings ------------------------------------------------------------------------------------------------
