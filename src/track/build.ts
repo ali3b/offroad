@@ -42,7 +42,7 @@ const DIRT_DARK = new THREE.Color('#7f4a22');
 const DIRT_LIGHT = new THREE.Color('#c98a4c');
 const RIDGE = new THREE.Color('#d6a088');
 const GRASS = new THREE.Color('#6f7f35');
-const MUD = new THREE.Color('#4a2f19');
+const MUD = new THREE.Color('#553519');
 const PLANK = new THREE.Color('#5e3d22');
 const PLANK_GAP = new THREE.Color('#3a2414');
 const OUTSIDE = new THREE.Color('#5b3a22');
@@ -143,10 +143,10 @@ function groundMesh(t: TrackData, g: HeightGrid) {
 /** A wet sheen over each mud zone: a ground-hugging patch with a glossy material and a soft alpha rim. */
 function mudMeshes(t: TrackData, g: HeightGrid) {
   const out: THREE.Mesh[] = [];
-  const mat = new THREE.MeshStandardMaterial({
-    color: '#3a2412',
-    roughness: 0.28,
-    metalness: 0.05,
+  const mat = new THREE.MeshPhongMaterial({
+    color: '#5b3b1f',
+    specular: '#9a7a58',
+    shininess: 70,
     vertexColors: true,
     transparent: true,
     depthWrite: false,
@@ -163,7 +163,7 @@ function mudMeshes(t: TrackData, g: HeightGrid) {
       for (let j = 0; j <= n; j++) {
         const x = z.x + (j / n - 0.5) * 2.3 * z.rx;
         const zz = z.z + (i / n - 0.5) * 2.3 * z.rz;
-        const a = zoneWeight(z, x, zz, 0.4) * (0.55 + 0.35 * vnoise(x * 0.8, zz * 0.8));
+        const a = zoneWeight(z, x, zz, 0.4) * (0.6 + 0.35 * vnoise(x * 0.8, zz * 0.8));
         pos.push(x, sampleHeight(g, x, zz) + 0.03, zz);
         col.push(1, 1, 1, a);
       }

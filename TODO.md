@@ -33,20 +33,27 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       jump); `scripts/feel-probe.mjs` (0→top, braking, turn rate, air time)
 - [ ] The player truck exported through `ssg model apply` (lifted pickup, 4 tints, origin axle-centre); wheels
       driven from the manifest `wheels` block (blocked on the generator's M1/M2, OR-FB-001)
-- [ ] Feel tuned against the reference footage (research/ORIGINAL.md): top speed vs. track size, turn rate, jump hang time,
-      bounce over whoops, wall bumps
-- [ ] Gate decision recorded in `docs/DESIGN.md`: keep the Rapier raycast vehicle, or switch to the custom 2.5D arcade model
+- [x] Feel tuned against the reference footage (research/ORIGINAL.md): top speed vs. track size, turn rate, jump hang time,
+      bounce over whoops, wall bumps (laps 16–17 s on track 1; table in docs/DESIGN.md; `scripts/lap-probe.mjs`)
+- [x] Gate decision recorded in `docs/DESIGN.md`: keep the Rapier raycast vehicle (with the arcade assists)
 
 ## OR2 · Track 1 + a full race → first public release
-- [ ] Track 1 from research/ORIGINAL.md: heightmap + track JSON (spline/racing line, walls, ramps, water/mud zones, checkpoints,
-      props placed from the generator's models)
-- [ ] 3 CPU trucks following racing lines with rubber-banding; truck-to-truck bumping
-- [ ] Start lights (traffic-light stand-in), 4 laps, lap counter, positions
-- [ ] Nitro and money pickups
-- [ ] Dust, mud and splash particles; skid marks
-- [ ] The original's HUD layout filled in (positions, laps, nitros, cash per truck); results screen with prize money
-- [ ] Load check races a full CPU race to the results
-- [ ] Release: screenshots in the README, a gameplay video (`record.mjs`), Pages deploy
+- [x] Track 1 from research/ORIGINAL.md: heightmap + track JSON (spline/racing line, walls, ramps, water/mud zones, checkpoints,
+      props placed from the generator's models): "Rattlesnake Run" (+ reversed), data-driven format in
+      `src/track/tracks/` documented in docs/DESIGN.md; props are placeholders until the export (OR-FB-001)
+- [x] 3 CPU trucks following racing lines with rubber-banding; truck-to-truck bumping (Rapier contacts); unstuck /
+      reverse off walls / rescue onto the line; the grey boss truck
+- [x] Start lights (lamp tree + flagman tower), Get Ready!, 4 laps by ordered gates, lap counter (positions only on
+      the results screen, like the original)
+- [x] Nitro and money pickups (about one a lap, escalating values)
+- [x] Dust, mud and splash particles; skid marks (pooled instanced quads)
+- [x] The original's HUD layout filled in (one panel per track spot: timer, laps and nitros per truck; no positions
+      or cash during the race); results/podium screen with prize money, times and the track record (`or.records`)
+- [x] Load check races a full CPU race to the results (`scripts/race-check.mjs`, autopilot player; load-check `race`)
+- [x] Game event bus (`src/race/events.ts`) for the audio lane
+- [x] Truck view loads `public/models/models.json` (GLB per tint, manifest wheels) with the box-truck fallback
+      (tested with synthetic GLBs; real export pending OR-FB-001, scale OR-FB-002)
+- [ ] Release: screenshots in the README (done), a gameplay video (`record.mjs`), Pages deploy (orchestrator)
 
 ## OR3 · Season and shop
 - [ ] All 8 tracks

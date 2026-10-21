@@ -31,15 +31,22 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
 - F3 = debug overlay (speed, wheel contacts, suspension, air time, fps). `?debug` opens it on load.
 
 ## Scenes and URL params
-- `?scene=test` (default): the placeholder truck on the test track. `?track=<id>` picks a track JSON.
+- `?scene=test` (default): the player's truck alone on the test track. `?track=<id>` picks a track JSON.
+- `?scene=race&track=<id>` (default `rattlesnake`): a 4-truck, 4-lap race. `&reverse` = the reversed variant,
+  `&cpus=0..3` fewer CPU trucks, `&autopilot` = the AI drives the player's truck.
+- Tracks are JSON in `src/track/tracks/` (format in docs/DESIGN.md "Track format"), registered in `index.ts`.
+- Game events for audio: `src/race/events.ts` (`events.on('impact', …)`).
 
 ## Checks before you finish a milestone
 - `npm run typecheck`
 - `npm run dev` (port 5199), then
   - `node scripts/load-check.mjs http://localhost:5199 test`: no page/console errors, the heightfield matches the
     height grid, the truck sits on four wheels; writes `test-results/test.png`.
+  - `node scripts/load-check.mjs http://localhost:5199 race`: the same for the race scene.
   - `node scripts/drive-check.mjs http://localhost:5199`: throttle 3 s (moves > 15 m, upright), a right turn, a
     nitro jump off the ramp; writes `test-results/drive-*.png`.
+  - `node scripts/race-check.mjs http://localhost:5199 [track] [--reverse]`: a full 4-lap race on autopilot; all
+    four trucks finish, laps counted by the gates, results with prize money; writes `test-results/race-*.png`.
 - Look at the screenshots. Tick the milestone in `TODO.md`, update `FEEDBACK.md`, and commit in this repo.
 - Release: `node scripts/record.mjs http://localhost:5199 <name>` → `test-results/video/<name>.mp4`;
   `node scripts/deploy-pages.mjs` → gh-pages.

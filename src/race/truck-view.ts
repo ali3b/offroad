@@ -42,6 +42,7 @@ export class TruckView {
     const m = model.manifest;
     // Fit the model's length to the physics chassis (+ bumpers), so the box collider and the look agree.
     const len = m.bounds?.size?.[2] ?? TUNING.half.z * 2;
+    // OR-FB-002: the export has no target size, so the game scales the GLB to its physics chassis.
     this.modelScale = Math.min(1.6, Math.max(0.6, (TUNING.half.z * 2 * 1.06) / len));
     const holder = new THREE.Group();
     holder.scale.setScalar(this.modelScale);

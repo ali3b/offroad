@@ -115,6 +115,8 @@ export class Truck {
   /** Nitro presses this step (a counter, for events). */
   nitroFired = 0;
   resets = 0;
+  /** Engine upgrade factor on force and top speed (1 = stock; the CPU boss runs a little hot; OR3's shop). */
+  power = 1;
   private flippedT = 0;
   private nitroHeld = false;
 
@@ -204,7 +206,7 @@ export class Truck {
     this.nitroHeld = input.nitro;
     const boosting = this.nitroT > 0;
     if (boosting) this.nitroT -= dt;
-    const top = boosting ? T.nitro.topSpeed : T.topSpeed;
+    const top = (boosting ? T.nitro.topSpeed : T.topSpeed) * this.power;
 
     // Steering eases towards the input; less lock at speed.
     const speedT = Math.min(1, Math.abs(fwd) / T.topSpeed);
@@ -217,7 +219,7 @@ export class Truck {
     // Throttle, brake and reverse.
     let engine = 0;
     let brake = 0;
-    if (input.throttle > 0) engine = input.throttle * T.engineForce * Math.max(0, 1 - (Math.max(0, fwd) / top) ** 2);
+    if (input.throttle > 0) engine = input.throttle * T.engineForce * this.power * Math.max(0, 1 - (Math.max(0, fwd) / top) ** 2);
     if (input.brake > 0) {
       if (fwd > 1.5) brake = input.brake * T.brakeForce;
       else engine -= input.brake * T.reverseForce * Math.max(0, 1 - (Math.max(0, -fwd) / T.reverseTopSpeed) ** 2);
@@ -307,7 +309,7 @@ export class Truck {
 
   /** Current top speed (higher during a nitro burst). */
   topSpeed() {
-    return this.nitroT > 0 ? TUNING.nitro.topSpeed : TUNING.topSpeed;
+    return (this.nitroT > 0 ? TUNING.nitro.topSpeed : TUNING.topSpeed) * this.power;
   }
 
   /** Engine load 0..1 for sound: speed share of top speed, kicked up by throttle. */

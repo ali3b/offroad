@@ -15,7 +15,7 @@ interface KindSpec {
 }
 
 const KINDS: Record<ParticleKind, KindSpec> = {
-  dust: { life: 1.1, size0: 0.7, size1: 2.4, gravity: -0.6, drag: 2.2, alpha: 0.42, colours: ['#d9a46a', '#c48e58', '#e0b483'].map((c) => new THREE.Color(c)) },
+  dust: { life: 1.2, size0: 0.9, size1: 3.0, gravity: -0.6, drag: 2.2, alpha: 0.6, colours: ['#ecc79a', '#e2b88a', '#f2d6b0'].map((c) => new THREE.Color(c)) },
   splash: { life: 0.65, size0: 0.32, size1: 0.18, gravity: 12, drag: 0.6, alpha: 0.9, colours: ['#ffffff', '#d8ecff', '#a9d2f5'].map((c) => new THREE.Color(c)) },
   mud: { life: 0.75, size0: 0.34, size1: 0.24, gravity: 13, drag: 0.6, alpha: 0.95, colours: ['#3b2412', '#4c311b', '#2d1b0d'].map((c) => new THREE.Color(c)) },
   smoke: { life: 0.8, size0: 0.8, size1: 2.6, gravity: -1.2, drag: 2.5, alpha: 0.7, colours: ['#f4f4f4', '#e6e6e6'].map((c) => new THREE.Color(c)) },

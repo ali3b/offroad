@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { buildTrack, type Track } from '../track/build';
+import { polygonDistance } from '../track/heights';
 import type { TrackData } from '../track/types';
 import { Truck, TUNING, type TruckInput } from '../physics/vehicle';
 import { TruckView } from './truck-view';
@@ -49,6 +50,7 @@ export class Session {
     for (let slot = 0; slot < n; slot++) {
       const entry = ROSTER[slot];
       const truck = new Truck(world, this.startSpot(slot), opts.nitros?.[slot] ?? TUNING.nitro.count);
+      truck.power = entry.power ?? 1;
       const view = new TruckView(entry.hex, opts.models?.[entry.colour]);
       scene.add(view.root);
       this.racers.push({ slot, entry, truck, view });
@@ -73,6 +75,12 @@ export class Session {
     this.racers.forEach((r) => r.truck.place(this.startSpot(r.slot)));
   }
 
+  /** True when the truck is outside the outer wall or has fallen below the ground. */
+  outside(truck: Truck) {
+    const p = truck.body.translation();
+    return polygonDistance(p.x, p.z, this.track.data.walls[0].points) > 0.3 || p.y < this.track.heightAt(p.x, p.z) - 3;
+  }
+
   /** Distance from the truck's nose to a wall straight ahead (m), Infinity when clear within `max`. */
   wallAhead(truck: Truck, max = 4) {
     const p = truck.body.translation();
@@ -90,11 +98,32 @@ export class Session {
     const env = { surface: this.track.surface };
     this.racers.forEach((r, i) => r.truck.update(dt, inputs[i] ?? inputs[0], env));
     this.world.step(this.queue);
+    if (this.racers.length === 1 && this.outside(this.truck)) this.reset();
     this.time += dt;
+    this.unstack();
     this.drainImpacts();
     this.racers.forEach((r, i) => this.truckFx(r, i, dt));
     this.particles.step(dt);
     for (const [k, v] of this.impactCool) if (v <= this.time) this.impactCool.delete(k);
+  }
+
+  /** A truck that lands on another one's roof slides off sideways (the wheels can't see trucks, OR2 pile-ups). */
+  private unstack() {
+    const rs = this.racers;
+    for (let a = 0; a < rs.length; a++)
+      for (let b = 0; b < rs.length; b++) {
+        if (a === b) continue;
+        const pa = rs[a].truck.body.translation();
+        const pb = rs[b].truck.body.translation();
+        const dx = pa.x - pb.x;
+        const dz = pa.z - pb.z;
+        const d = Math.hypot(dx, dz);
+        if (pa.y - pb.y < 0.5 || d > 2.6) continue;
+        const v = rs[a].truck.body.linvel();
+        const nx = d > 0.05 ? dx / d : 1;
+        const nz = d > 0.05 ? dz / d : 0;
+        rs[a].truck.body.setLinvel({ x: v.x + nx * 0.35, y: v.y, z: v.z + nz * 0.35 }, true);
+      }
   }
 
   private drainImpacts() {

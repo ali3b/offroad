@@ -27,3 +27,18 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   `scripts/build-assets.mjs` prints a notice and exits 0 while the command is missing.
 - Suggested change: ship M1/M2.
 - Status: open
+
+## OR-FB-002 · No target size for a model export (the game rescales the GLB to its physics)
+- Severity: workaround        Milestone: OR2
+- Tried: the spec in the generator's docs/MODELS.md (branch integrate-w16): `asset, name, clips, inPlace, attach,
+  origin, texSize, texFormat, simplify, tint`.
+- Wanted: a way to ask for the truck at the game's size, e.g. `"fit": { "length": 4.75 }` (or `"scale": 0.92`), so
+  the GLB, its manifest `bounds`/`wheels.radius`/`collider.box` and the game's 4.5 m physics chassis agree without
+  game code doing maths on the manifest. The track scale (truck ≈ 1/19 of the arena width) is fixed by the
+  original's proportions, so the truck size is a design input, not whatever the Synty pickup measures.
+- Got: the export is always in the model's own metres.
+- Workaround: `src/race/truck-view.ts` scales the loaded GLB by `4.5 × 1.06 / bounds.size[2]` and divides wheel
+  suspension offsets by that scale (tagged `// OR-FB-002`).
+- Suggested change: a `fit` (or `scale`) spec field / `--fit-length` flag, applied before the manifest numbers are
+  computed (so wheel radius, pivots and the collider box come out scaled too).
+- Status: open

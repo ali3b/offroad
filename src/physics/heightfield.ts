@@ -7,6 +7,8 @@ import type { Wall } from '../track/types';
 /** Wall collider height above the ground and its thickness (m). */
 export const WALL_HEIGHT = 1.3;
 export const WALL_THICKNESS = 0.9;
+/** The colliders reach higher than the drawn tyres: an invisible fence, so no truck ever leaves the arena. */
+const WALL_COLLIDER_HEIGHT = 4.5;
 
 export function addHeightfield(world: RAPIER.World, g: HeightGrid): RAPIER.Collider {
   // Rapier wants a column-major (nrows+1) × (ncols+1) matrix with rows along z and columns along x:
@@ -42,7 +44,7 @@ export function addWalls(world: RAPIER.World, g: HeightGrid, walls: Wall[]): RAP
         bottom = Math.min(bottom, y);
       }
       const y0 = bottom - 2;
-      const y1 = top + WALL_HEIGHT;
+      const y1 = top + WALL_COLLIDER_HEIGHT;
       const yaw = Math.atan2(bx - ax, bz - az);
       const q = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
       // Half a thickness of overlap at the joints so corners have no gaps.

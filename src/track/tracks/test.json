@@ -19,5 +19,7 @@
   "zones": [
     { "type": "water", "shape": "ellipse", "x": 0, "z": -23, "rx": 7.5, "rz": 4.8, "level": -0.55, "drag": 1.4 }
   ],
+  "hud": { "panel": { "x": 40, "z": -35.5 }, "name": { "x": 2, "z": -35 } },
+  "flagman": { "x": -19, "z": 33.4, "heading": 3.1416 },
   "start": { "heading": 1.5708, "grid": [[-24, 19], [-24, 27], [-31, 19], [-31, 27]] }
 }

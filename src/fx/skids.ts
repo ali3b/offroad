@@ -13,7 +13,7 @@ varying float vAlpha;
 void main() {
   vec3 dir = iB - iA;
   vec3 side = normalize(vec3(-dir.z, 0.0, dir.x) + vec3(1e-5, 0.0, 0.0));
-  vec3 p = mix(iA, iB, position.y + 0.5) + side * position.x * 0.36;
+  vec3 p = mix(iA, iB, position.y + 0.5) + side * position.x * 0.42;
   float age = uTime - iMeta.x;
   vAlpha = iMeta.y * clamp(1.0 - age / ${FADE.toFixed(1)}, 0.0, 1.0);
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
@@ -23,7 +23,7 @@ const FRAG = /* glsl */ `
 varying float vAlpha;
 void main() {
   if (vAlpha < 0.01) discard;
-  gl_FragColor = vec4(0.23, 0.13, 0.07, vAlpha);
+  gl_FragColor = vec4(0.17, 0.09, 0.04, vAlpha);
   #include <colorspace_fragment>
 }`;
 

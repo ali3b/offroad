@@ -238,6 +238,10 @@ export class Race {
       this.states[0].ai.s = this.line.project(p.x, p.z, this.states[0].ai.s).s;
     }
     s.step(dt, inputs);
+    // A truck that somehow left the arena (or fell through) goes back onto the line.
+    s.racers.forEach((r, i) => {
+      if (s.outside(r.truck)) this.rescue(i);
+    });
 
     if (this.phase === 'racing') {
       this.gatesAndLaps();
