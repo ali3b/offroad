@@ -1,4 +1,5 @@
 {
+  "project": "Off Road",
   "defaults": {"texSize": 256, "texFormat": "webp"},
   "models": [
     {"name": "truck", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "origin": "axle-centre", "fit": {"length": 4.5}, "texSize": 1024, "compress": "meshopt", "variants": [{"name": "red", "tint": "#c62828"}, {"name": "blue", "tint": "#1e5bc6"}, {"name": "yellow", "tint": "#f2c618"}, {"name": "grey", "tint": "#8a8f94"}]},
