@@ -1,6 +1,9 @@
 // The Speed Shop between races, laid out like the original's: three colour panels; the shopping player's panel
 // becomes the shop (CREDITS and CASH boxes over six tiles: Nitro, Acceleration, Tires, Top Speed, Shocks, Start Next
-// Race with a map of the next track); the other panels show the CPU drivers and how far they've upgraded.
+// Race with a map of the next track); the other panels show the CPU drivers and how far they've upgraded. With 2–3
+// humans they shop in turn (player 1 first): the shopping player's panel is the shop, the other humans' panels show
+// their cash, credits and upgrades (NEXT / DONE), and START NEXT RACE passes the shop on (the last one starts it).
+// Only the shopping player's keys / pad act (MenuEvent.player, filled in by the flow).
 import { addStyle } from '../pixel';
 import type { MenuEvent } from '../../engine/input';
 import { CPU_DRIVERS, HEX, PLAYER_COLOURS, type Colour } from '../../race/roster';
@@ -35,7 +38,10 @@ const CSS = `
 .or-shop .msg { height: 14px; font-size: 10px; color: #fff; text-shadow: 2px 2px 0 #000; }
 .or-shop .msg.bad { color: #ffe14a; }
 .or-shop .panel.cpu .bars { margin-top: 6px; }
-.or-shop .panel.cpu .cash { font-size: 10px; }
+.or-shop .panel.cpu .cash, .or-shop .panel.other .cash { font-size: 10px; line-height: 1.8; }
+.or-shop .panel.other { filter: saturate(.85) brightness(.92); }
+.or-shop .panel.other .state { font-size: 13px; color: #fff; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; }
+.or-shop .panel .turn { font-size: 10px; color: #fff; }
 .or-shop .boss { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; gap: 14px; justify-content: center; align-items: center;
   font-size: 9px; color: #c9ccd2; }
 .or-shop .boss .lv { flex-direction: row; } .or-shop .boss .lv i { width: 8px; height: 8px; }
@@ -55,11 +61,11 @@ const ICON: Record<ShopItem, string> = {
 };
 
 export interface ShopOpts {
-  player: () => PlayerState;
+  players: () => PlayerState[];
   cpus: () => CpuState[];
   next: NextRace;
   raceNo: number;
-  onBuy(item: ShopItem): void;
+  onBuy(item: ShopItem, player: number): void;
   onStart(): void;
   onQuit(): void;
 }
@@ -73,6 +79,8 @@ export class ShopScreen implements Screen {
   private msgT = 0;
   private quitArmed = false;
   private thumb: HTMLCanvasElement;
+  /** The human shopping now (index into players()). */
+  turn = 0;
 
   constructor(private o: ShopOpts) {
     addStyle('or-shop-css', CSS);
@@ -91,9 +99,16 @@ export class ShopScreen implements Screen {
     this.msgT = 2.2;
   }
 
+  /** The shopping player. */
+  player() {
+    return this.o.players()[this.turn];
+  }
+
   draw() {
-    const me = this.o.player();
+    const all = this.o.players();
+    const me = all[this.turn];
     const cpus = this.o.cpus();
+    const many = all.length > 1;
     const tiles = TILES.map((it, i) => {
       const max = it === 'nitro' ? me.nitros >= MAX_NITROS : me.levels[it] >= MAX_LEVEL;
       const side =
@@ -108,10 +123,12 @@ export class ShopScreen implements Screen {
       <div class="nm">${esc(this.o.next.name.toUpperCase())}</div></div>`;
     const panels = PLAYER_COLOURS.map((c) => {
       if (c === me.colour)
-        return `<div class="panel me" data-colour="${c}" style="background:${PANEL[c].bg}">
-          <div class="money"><div class="credits">CREDITS<b>${me.credits}</b></div><div>CASH<b>${money(me.cash)}</b></div></div>
+        return `<div class="panel me" data-colour="${c}" data-player="${this.turn + 1}" style="background:${PANEL[c].bg}">
+          ${many ? `<div class="turn">PLAYER ${this.turn + 1} ${esc(me.initials)} SHOPPING</div>` : ''}<div class="money"><div class="credits">CREDITS<b>${me.credits}</b></div><div>CASH<b>${money(me.cash)}</b></div></div>
           <div class="tiles">${tiles}${start}</div>
           <div class="msg${this.msgBad ? ' bad' : ''}">${this.msg}</div></div>`;
+      const k = all.findIndex((x) => x.colour === c);
+      if (k >= 0) return humanPanel(all[k], k, k < this.turn ? 'DONE' : 'NEXT');
       const cpu = cpus.find((x) => x.colour === c);
       return cpu ? cpuPanel(c, cpu) : '';
     }).join('');
@@ -124,6 +141,8 @@ export class ShopScreen implements Screen {
   }
 
   input(e: MenuEvent) {
+    // Only the shopping player's keys / pad (undefined = anyone: one human, Esc, tests).
+    if (e.player !== undefined && e.player !== this.turn) return;
     if (e.key !== 'back') this.quitArmed = false;
     const col = this.cursor % 2;
     const row = Math.floor(this.cursor / 2);
@@ -140,11 +159,18 @@ export class ShopScreen implements Screen {
         break;
       case 'confirm': {
         const it = this.item;
-        if (it === 'start') return this.o.onStart();
-        const c = canBuy(this.o.player(), it);
+        if (it === 'start') {
+          if (this.turn >= this.o.players().length - 1) return this.o.onStart();
+          // The next human's turn at the shop.
+          this.turn++;
+          this.cursor = 0;
+          this.msg = '';
+          break;
+        }
+        const c = canBuy(this.player(), it);
         if (c === 'ok') {
-          this.o.onBuy(it);
-          this.flash(it === 'nitro' ? `+${NITRO_PER_BUY} NITRO` : `${LABEL[it]} LEVEL ${this.o.player().levels[it]}`);
+          this.o.onBuy(it, this.turn);
+          this.flash(it === 'nitro' ? `+${NITRO_PER_BUY} NITRO` : `${LABEL[it]} LEVEL ${this.player().levels[it]}`);
         } else this.flash(c === 'cash' ? 'NOT ENOUGH CASH' : 'ALREADY MAXED', true);
         break;
       }
@@ -172,6 +198,15 @@ export class ShopScreen implements Screen {
   dispose() {
     this.el.remove();
   }
+}
+
+/** Another human's panel while someone else shops: their truck, upgrades, cash and credits. */
+function humanPanel(p: PlayerState, k: number, state: string) {
+  const c = p.colour;
+  const bars = (['accel', 'tires', 'top', 'shocks'] as Upgrade[]).map((u) => `<span class="bar">${levelBar(p.levels[u])}${SHORT[u]}</span>`).join('');
+  return `<div class="panel other" data-colour="${c}" data-player="${k + 1}" style="background:${PANEL[c].bg};color:${PANEL[c].text}">
+    <div class="who">PLAYER ${k + 1}<br>${esc(p.initials)}</div>${truckIcon(HEX[c])}<div class="state">${state}</div>
+    <div class="bars">${bars}</div><div class="cash">${money(p.cash)}<br>CREDITS ${p.credits} &middot; NITRO ${p.nitros}</div>${trophyIcon()}</div>`;
 }
 
 function cpuPanel(c: Colour, cpu: CpuState) {

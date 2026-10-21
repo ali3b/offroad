@@ -1,6 +1,8 @@
 // Boot: the renderer, the truck models, audio, then the flow (game/flow.ts) on the scene picked by ?scene=:
 //   (none) or ?scene=title    the title / attract screen → hints → sign-up → the season (races, shop, continues)
-//   ?scene=shop               straight into the Speed Shop (the saved season, or a fresh one: &cash= &race= &colour=)
+//   ?scene=shop               straight into the Speed Shop (the saved season, or a fresh one: &cash= &race= &colour=
+//                             &players=1..3)
+//   ?scene=register           the driver sign-up (&join=wasd,arrows,pad0: players already joined, for screenshots)
 //   ?scene=race&track=<id>    a standalone 4-truck race (default `rattlesnake`); &reverse, &cpus=0..3, &autopilot
 //   ?scene=test               the player's truck alone on a track (default track `test`)
 //   ?scene=podium             the results screen's 3D podium with made-up results (&order=2,0,1,3: slots by place)
@@ -17,7 +19,7 @@ import { bridgeAudio } from './audio/bridge';
 import { Flow } from './game/flow';
 import { preloadPodium } from './ui/podium-view';
 
-const SCENES = ['title', 'shop', 'race', 'test', 'audio', 'podium'] as const;
+const SCENES = ['title', 'shop', 'register', 'race', 'test', 'audio', 'podium'] as const;
 
 declare global {
   interface Window {
@@ -42,12 +44,17 @@ async function boot() {
   const [, models] = await Promise.all([createWorld().then((w) => w.free()), loadTruckModels()]);
   initKeyboard();
   const flow = new Flow(stage.renderer, models, params);
-  bridgeAudio(events, (i) => flow.race?.screenX(i) ?? 0);
+  bridgeAudio(
+    events,
+    (i) => flow.race?.screenX(i) ?? 0,
+    (i) => flow.race?.session.isHuman(i) ?? i === 0,
+  );
   flow.installHandles(window.__or);
   window.__or.audio = getAudio();
 
   if (sceneName === 'race' || sceneName === 'test') await flow.standalone(sceneName);
   else if (sceneName === 'shop') flow.openShop();
+  else if (sceneName === 'register') flow.openRegister();
   else if (sceneName === 'podium') await flow.podiumScene();
   else await flow.toTitle();
   flow.resize();
