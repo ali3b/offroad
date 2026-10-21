@@ -26,6 +26,8 @@ source assets by hand.
 - **FM-style music and sound effects** synthesised in the browser: engines, skids, splashes, crashes, countdown.
 - **A title screen with a demo race** and an attract loop with racing hints.
 - **The DOS look** (F2): 200 lines, a 256- or 16-colour palette and scanlines.
+- **Local multiplayer for up to 3 players** (red, yellow, blue; grey is always the CPU boss): each joins at the
+  sign-up with their own keys or pad, and has their own cash, credits, upgrades and turn at the Speed Shop.
 - Keyboard and gamepad.
 
 ![A race on Rattlesnake Run](docs/screenshots/race-rattlesnake.png)
@@ -62,6 +64,19 @@ Eight stadium tracks in season order, each also raced in reverse (`?scene=race&t
 | DOS look (off, 256, 16 colours) | F2 | |
 | Debug overlay | F3 | |
 
+**Local multiplayer (2–3 players).** At the driver sign-up each player joins a colour panel by pressing their start
+key or (A) on a pad, enters initials and confirms READY; colours nobody joins race as CPU drivers. With one player the
+whole keyboard and every pad drive the one truck (the table above); with two or three the keyboard splits:
+
+| Players | Player on the WASD side | Player on the arrows side | Third player |
+|---|---|---|---|
+| 1 | Arrows or WASD, Space / Shift = nitro, any pad | | |
+| 2–3 | W A S D, **Left Shift** = nitro (joins with W or Left Shift) | Arrows, **Right Ctrl** or Enter = nitro (joins with Up or Enter) | Gamepad only (joins with A) |
+
+Every player can also drive with a pad: a player who joined with a pad keeps it; the other pads are lent to the
+keyboard players in join order. In the menus each player's keys / pad act for them (the Speed Shop is visited in
+turn); Esc works for whoever is up.
+
 ## Develop
 
 ```sh
@@ -78,6 +93,7 @@ node scripts/drive-check.mjs http://localhost:5199       # scripted drive: throt
 node scripts/load-check.mjs http://localhost:5199 race track=mesa reverse   # any track, either way
 node scripts/race-check.mjs http://localhost:5199        # a full 4-lap race on autopilot to the results
 node scripts/season-check.mjs http://localhost:5199      # the season flow: 3 races, the shop, credits, continue
+node scripts/twoplayer-check.mjs http://localhost:5199   # local multiplayer: 2 players join with keys, shop in turn, credits per player
 npm test                                                 # unit tests (track rotation, shop, credits)
 node scripts/race-check.mjs http://localhost:5199 buzzard --reverse
 node scripts/track-map.mjs http://localhost:5199 twister # a top-down layout map + line/gate/wall lint

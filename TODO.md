@@ -78,7 +78,11 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       screen, `driver_<colour>` Synty drivers (victory / waves / slumped), their trucks, a trophy; `?scene=podium`
 - [x] A crowd in the stands (Synty fans: 6 skinned + baked poses instanced, cheering on finishes and big jumps);
       our own chiptune-style music; engine, skid and crash sounds (audio lane)
-- [ ] Local 2-player (keyboard + pad)
+- [x] Local 2-player (keyboard + pad): up to 3 humans (red, yellow, blue) join at the sign-up's colour panels (W /
+      Left Shift, Up / Enter, pad A), initials + READY; the keyboard splits (WASD + Left Shift, arrows + Right Ctrl,
+      a third player on a pad; pads lent in join order); per-human cash, nitros, upgrades and credits, the shop in
+      turn, CONTINUE? per human (give up → that colour drops to CPU); `or.season` v2 with the v1 migration; every
+      human's engine at player level; `scripts/twoplayer-check.mjs`, `multiplayer.test.ts`, `?scene=register&join=`
 - [x] A CRT / pixel option for the DOS look: F2 or the title menu (200 lines, 256/16 colours, scanlines), saved in
       `or.settings`; a full settings screen (volumes) is still open
 
