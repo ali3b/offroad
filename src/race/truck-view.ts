@@ -3,7 +3,7 @@
 // suspension travel). Without them it draws the OR1 placeholder: a box body, a cab and four chunky wheels.
 import * as THREE from 'three';
 import { TUNING, type Truck } from '../physics/vehicle';
-import type { LoadedModel } from './models';
+import { loadModel, type LoadedModel } from './models';
 
 export const TRUCK_COLOURS = { red: '#d42a26', yellow: '#e8c020', blue: '#2f5fd8', grey: '#9aa0a8' } as const;
 
@@ -17,6 +17,26 @@ const SAG_LENGTH = 0.45;
  */
 export const TRUCK_LOOK = 1.12;
 const WHEEL_KEYS = ['fl', 'fr', 'rl', 'rr'] as const;
+
+/**
+ * The nitro flame: the Pro Racer flame mesh (ssg.models.json `flame`, a 0.21 m cone) drawn twice behind the rear
+ * bumper with additive orange and yellow-white materials of our own, flickering while a nitro burns. The export
+ * keeps the mesh but not its FX shader (it arrives untextured grey, OR-FB-019), so the game gives it the glow.
+ */
+let flameGeometry: Promise<THREE.BufferGeometry | null> | null = null;
+const flameGeo = () =>
+  (flameGeometry ??= loadModel('flame').then((m) => {
+    let g: THREE.BufferGeometry | null = null;
+    m?.scene.updateMatrixWorld(true);
+    m?.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!g && mesh.isMesh) g = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+    });
+    // Point it backwards (-z) from its base.
+    return g ? (g as THREE.BufferGeometry).rotateX(-Math.PI / 2) : null;
+  }));
+const FLAME_OUTER = new THREE.MeshBasicMaterial({ color: '#ff7a1a', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+const FLAME_CORE = new THREE.MeshBasicMaterial({ color: '#fff2a8', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 
 interface ModelWheel {
   node: THREE.Object3D;
@@ -40,11 +60,45 @@ export class TruckView {
   private modelWheels: (ModelWheel | null)[] = [];
   private modelScale = 1;
   readonly usesModel: boolean;
+  private flames: THREE.Mesh[] = [];
+  private flameT = 0;
 
   constructor(colour: string, model?: LoadedModel | null) {
     this.usesModel = !!model;
-    if (model) this.buildModel(model);
-    else this.buildBox(colour);
+    if (model) {
+      this.buildModel(model);
+      void flameGeo().then((g) => g && this.buildFlames(g));
+    } else this.buildBox(colour);
+  }
+
+  /** Two flames (an orange cone with a white-hot core) out of the back, hidden until a nitro fires. */
+  private buildFlames(geo: THREE.BufferGeometry) {
+    const z = -TUNING.half.z - 0.15;
+    for (const x of [-0.45, 0.45]) {
+      const outer = new THREE.Mesh(geo, FLAME_OUTER);
+      const core = new THREE.Mesh(geo, FLAME_CORE);
+      core.scale.setScalar(0.55);
+      core.position.z = 0.05;
+      outer.add(core);
+      outer.position.set(x, 0.05, z);
+      outer.visible = false;
+      outer.name = 'nitro-flame';
+      this.root.add(outer);
+      this.flames.push(outer);
+    }
+  }
+
+  /** Show the nitro flames while `on`, flickering each frame. */
+  flame(on: boolean, dt = 1 / 60) {
+    this.flameT = on ? Math.min(1, this.flameT + dt * 10) : Math.max(0, this.flameT - dt * 6);
+    for (const f of this.flames) {
+      f.visible = this.flameT > 0.02;
+      if (!f.visible) continue;
+      // The cone is 0.21 m long: about 1.6 m of flame, its width and length jittering.
+      const len = (6 + Math.random() * 4) * this.flameT;
+      const w = 3.6 + Math.random() * 1.2;
+      f.scale.set(w, w, len);
+    }
   }
 
   private buildModel(model: LoadedModel) {

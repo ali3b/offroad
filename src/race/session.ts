@@ -237,6 +237,7 @@ export class Session {
   render() {
     this.racers.forEach((r, i) => {
       r.view.sync(r.truck);
+      r.view.flame(r.truck.nitroT > 0);
       // Every human truck is a player (local multiplayer: their engines at player level); standalone: slot 0.
       events.emit('engine', { truck: i, rpm: r.truck.rpm(), throttle: r.truck.input.throttle, speed: r.truck.state().speed, nitro: r.truck.nitroT > 0, player: this.isHuman(i) });
     });
