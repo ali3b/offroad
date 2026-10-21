@@ -172,8 +172,12 @@ export interface TrackData {
   laps?: number;
   /** The reversed variant: the line and gates are driven backwards; it needs its own grid. */
   reverse?: { start: StartData };
-  /** Static dressing (tyre piles, barrels, hay bales, cones): drawn, not collided. */
-  props?: { kind: 'tyre_pile' | 'barrel' | 'hay_bale' | 'cone'; x: number; z: number; rot?: number }[];
+  /**
+   * Static dressing, drawn, not collided: tyre piles, barrels, hay bales, cones; giant drums (3 m, banded) are solid,
+   * so keep them off the racing line, and bunting (a string of pennants between two poles, `len` metres long across `rot`, high
+   * over the lane: it marks a jump).
+   */
+  props?: { kind: 'tyre_pile' | 'barrel' | 'hay_bale' | 'cone' | 'bunting' | 'drum'; x: number; z: number; rot?: number; len?: number }[];
   /** The track's own colours (CSS colours); anything left out keeps the default sandy arena. */
   palette?: Palette;
 }

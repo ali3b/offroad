@@ -522,6 +522,15 @@ function props(t: TrackData, g: HeightGrid) {
   const accent = new THREE.MeshLambertMaterial({ color: paletteOf(t).accent });
   const coneMat = new THREE.MeshLambertMaterial({ color: '#f06a1a' });
   const bandMat = new THREE.MeshLambertMaterial({ color: '#f4f1ea' });
+  const pal = paletteOf(t);
+  const poleMat = new THREE.MeshLambertMaterial({ color: '#f4f1ea' });
+  const pennant = new THREE.BufferGeometry();
+  pennant.setAttribute('position', new THREE.Float32BufferAttribute([-0.3, 0, 0, 0.3, 0, 0, 0, -0.55, 0], 3));
+  pennant.computeVertexNormals();
+  const pennantMat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+  const drumMat = new THREE.MeshLambertMaterial({ color: '#f1efe9' });
+  const bandA = new THREE.MeshLambertMaterial({ color: '#c8302a' });
+  const bandB = new THREE.MeshLambertMaterial({ color: '#2f5fc8' });
   for (const p of t.props ?? []) {
     const y = sampleHeight(g, p.x, p.z);
     const o = new THREE.Group();
@@ -539,6 +548,49 @@ function props(t: TrackData, g: HeightGrid) {
       m.position.y = 0.6;
       m.castShadow = true;
       o.add(m);
+    } else if (p.kind === 'bunting') {
+      // Two poles and a sagging string of pennants in alternating colours, high enough to drive (and jump) under.
+      const len = p.len ?? 12;
+      const top = 4.2;
+      for (const end of [-1, 1]) {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, top, 6), poleMat);
+        pole.position.set((end * len) / 2, top / 2, 0);
+        pole.castShadow = true;
+        o.add(pole);
+      }
+      const n = Math.round(len / 0.9);
+      const flags = new THREE.InstancedMesh(pennant, pennantMat, n);
+      const m4 = new THREE.Matrix4();
+      const colours = [pal.flag, pal.wallA, pal.wallB].map((c) => new THREE.Color(c));
+      for (let k = 0; k < n; k++) {
+        const u = (k + 0.5) / n;
+        const x = (u - 0.5) * len;
+        const y = top - 0.15 - Math.sin(u * Math.PI) * 0.7;
+        m4.makeTranslation(x, y, 0);
+        flags.setMatrixAt(k, m4);
+        flags.setColorAt(k, colours[k % colours.length]);
+      }
+      o.add(flags);
+      // Stand the bunting on the highest ground under it (it spans a ridge).
+      let hi = -Infinity;
+      for (let k = 0; k <= 8; k++) {
+        const x = (k / 8 - 0.5) * len;
+        const c = Math.cos(p.rot ?? 0);
+        const sn = Math.sin(p.rot ?? 0);
+        hi = Math.max(hi, sampleHeight(g, p.x + x * c, p.z - x * sn));
+      }
+      o.position.y = hi;
+    } else if (p.kind === 'drum') {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 3.2, 24), drumMat);
+      body.position.y = 1.6;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      o.add(body);
+      for (const [y, mat] of [[0.7, bandA], [2.5, bandB]] as const) {
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(1.53, 1.53, 0.45, 24), mat);
+        band.position.y = y;
+        o.add(band);
+      }
     } else if (p.kind === 'cone') {
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 10), coneMat);
       m.position.y = 0.43;
@@ -692,7 +744,19 @@ export function buildTrack(t: TrackData, world: RAPIER.World): Track {
   const br = bridges(t, world, frames);
   group.add(br.group);
   // Railings count as walls (impact sounds, the AI's nose-in check).
-  const walls = [...addWalls(world, grid, t.walls), ...br.rails];
+  // Giant drums are solid (a truck bounces off them like a wall).
+  const drums = (t.props ?? [])
+    .filter((p) => p.kind === 'drum')
+    .map((p) =>
+      world.createCollider(
+        RAPIER.ColliderDesc.cylinder(1.6, 1.5)
+          .setTranslation(p.x, sampleHeight(grid, p.x, p.z) + 1.6, p.z)
+          .setFriction(0.2)
+          .setRestitution(0.45)
+          .setCollisionGroups(GROUP.STATIC),
+      ),
+    );
+  const walls = [...addWalls(world, grid, t.walls), ...br.rails, ...drums];
   const bounds = new THREE.Box3();
   for (const w of t.walls) for (const [x, z] of w.points) bounds.expandByPoint(new THREE.Vector3(x, sampleHeight(grid, x, z), z));
   bounds.min.y = Math.min(bounds.min.y, -0.5);
