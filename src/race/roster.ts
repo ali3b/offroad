@@ -24,7 +24,16 @@ export interface Entry {
   skill: Skill;
   /** Engine factor (Truck.power): the boss truck is a little stronger. */
   power?: number;
+  /** A human driver (season: the player's initials are the nick). */
+  human?: boolean;
 }
+
+export type Colour = Entry['colour'];
+/** The HUD and grid colour order. */
+export const COLOURS: Colour[] = ['red', 'yellow', 'blue', 'grey'];
+/** Colours a human can pick (grey is always the CPU boss). */
+export const PLAYER_COLOURS: Colour[] = ['red', 'yellow', 'blue'];
+export const HEX: Record<Colour, string> = { red: '#d42a26', yellow: '#e8c020', blue: '#2f5fd8', grey: '#9aa0a8' };
 
 export const ROSTER: Entry[] = [
   { colour: 'red', hex: '#d42a26', nick: 'PLAYER 1', name: 'You', skill: { pace: 0.97, cornerGrip: 17, lookahead: 5, wobble: 0.3, nitroChance: 0.55, sloppiness: 0 } },
@@ -32,6 +41,14 @@ export const ROSTER: Entry[] = [
   { colour: 'blue', hex: '#2f5fd8', nick: 'ROWDY', name: 'Rita Vance', skill: { pace: 0.93, cornerGrip: 15.5, lookahead: 5, wobble: 1.0, nitroChance: 0.45, sloppiness: 0.08 } },
   { colour: 'grey', hex: '#9aa0a8', nick: 'STEEL', name: 'Hank Dorsey', skill: { pace: 1.0, cornerGrip: 18.5, lookahead: 5, wobble: 0.4, nitroChance: 0.6, sloppiness: 0 }, power: 1.05 },
 ];
+
+/** The CPU driver for each colour (season: the colours no human took). Red only races when a player picks another colour. */
+export const CPU_DRIVERS: Record<Colour, Entry> = {
+  red: { colour: 'red', hex: HEX.red, nick: 'DUSTY', name: 'Dot Marlow', skill: { pace: 0.915, cornerGrip: 15, lookahead: 5.2, wobble: 1.1, nitroChance: 0.4, sloppiness: 0.1 } },
+  yellow: ROSTER[1],
+  blue: ROSTER[2],
+  grey: ROSTER[3],
+};
 
 /** Starting nitros: the player 25, each CPU truck 10 (unused ones carry over to the next race). */
 export const START_NITROS = { player: 25, cpu: 10 };

@@ -6,7 +6,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { buildTrack, type Track } from '../track/build';
 import { polygonDistance } from '../track/heights';
 import type { TrackData } from '../track/types';
-import { Truck, TUNING, type TruckInput } from '../physics/vehicle';
+import { Truck, TUNING, type TruckInput, type TruckMods } from '../physics/vehicle';
 import { TruckView } from './truck-view';
 import { ROSTER, type Entry } from './roster';
 import type { TruckModels } from './models';
@@ -41,16 +41,19 @@ export class Session {
     readonly world: RAPIER.World,
     readonly scene: THREE.Scene,
     data: TrackData,
-    opts: { trucks?: number; nitros?: number[]; models?: TruckModels | null } = {},
+    opts: { trucks?: number; nitros?: number[]; models?: TruckModels | null; entries?: Entry[]; mods?: TruckMods[] } = {},
   ) {
     this.track = buildTrack(data, world);
     scene.add(this.track.group, this.skids.mesh, this.particles.mesh);
     for (const w of this.track.walls) this.wallHandles.add(w.handle);
-    const n = Math.min(opts.trucks ?? 1, data.start.grid.length, ROSTER.length);
+    // The season passes its own line-up (the player's colour and initials, CPU drivers); else the default roster.
+    const roster = opts.entries ?? ROSTER;
+    const n = Math.min(opts.trucks ?? (opts.entries ? roster.length : 1), data.start.grid.length, roster.length);
     for (let slot = 0; slot < n; slot++) {
-      const entry = ROSTER[slot];
+      const entry = roster[slot];
       const truck = new Truck(world, this.startSpot(slot), opts.nitros?.[slot] ?? TUNING.nitro.count);
       truck.power = entry.power ?? 1;
+      if (opts.mods?.[slot]) truck.setMods(opts.mods[slot]);
       const view = new TruckView(entry.hex, opts.models?.[entry.colour]);
       scene.add(view.root);
       this.racers.push({ slot, entry, truck, view });
