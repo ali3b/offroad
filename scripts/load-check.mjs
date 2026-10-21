@@ -1,6 +1,8 @@
 // Smoke check: the game boots a scene with no page or console errors and saves test-results/<scene>.png.
-//   node scripts/load-check.mjs [url] [scene]          (npm run dev first; default http://localhost:5199 test)
-// Scenes: test, race (truck + ground checks), title (the demo race behind the logo: ground check), shop (menus only).
+//   node scripts/load-check.mjs [url] [scene] [param ...]  (npm run dev first; default http://localhost:5199 test)
+//   extra params go onto the query, e.g. `race track=coyote reverse` → ?scene=race&track=coyote&reverse and
+//   test-results/race-coyote-reverse.png
+// Scenes: test, race (truck + ground checks), title (the demo race behind the logo: ground check), shop/podium (menus).
 // The game's own default (no ?scene) is the title; this check keeps `test` as its default.
 // Headless Chromium on SwiftShader (software GL): the shared GPU stays free.
 import { chromium } from '@playwright/test';
@@ -8,6 +10,9 @@ import fs from 'node:fs';
 
 const url = (process.argv[2] ?? process.env.GAME_URL ?? 'http://localhost:5199').replace(/\/$/, '');
 const scene = process.argv[3] ?? 'test';
+const extra = process.argv.slice(4);
+const query = extra.map((p) => `&${p}`).join('');
+const shot = [scene, ...extra.map((p) => p.replace(/^track=/, '').replace(/[^\w-]+/g, '-'))].join('-');
 const env = { ...process.env };
 delete env.DISPLAY;
 delete env.WAYLAND_DISPLAY;
@@ -24,7 +29,7 @@ const fail = (msg) => {
 };
 
 try {
-  await page.goto(`${url}/?scene=${encodeURIComponent(scene)}`);
+  await page.goto(`${url}/?scene=${encodeURIComponent(scene)}${query}`);
   await page.waitForFunction(() => window.__or?.ready === true, null, { timeout: 90000 });
   // A few real frames so the HUD and shadows are drawn.
   await page.waitForFunction(() => window.__or.loop.steps > 120, null, { timeout: 30000 });
@@ -40,8 +45,8 @@ try {
     if (parked && info.truck.up.y < 0.95) fail('the parked truck is not upright');
   } else if (parked) fail('no race scene');
   else console.log(`${scene}: menu screen "${await page.evaluate(() => window.__or.flow.state().screen)}"`);
-  await page.screenshot({ path: `test-results/${scene}.png` });
-  console.log(`saved test-results/${scene}.png`);
+  await page.screenshot({ path: `test-results/${shot}.png` });
+  console.log(`saved test-results/${shot}.png`);
 } catch (e) {
   fail(e.message);
 }
