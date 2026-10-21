@@ -56,7 +56,9 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [ ] Release: screenshots in the README (done), a gameplay video (`record.mjs`), Pages deploy (orchestrator)
 
 ## OR3 · Season and shop
-- [ ] All 8 tracks
+- [x] All 8 tracks: Coyote Canyon, Bone Yard, Dry Creek Spiral, Twister Flats, Buzzard Bend, Thunder Ridge, Mesa Mayhem
+      join Rattlesnake Run (each reversible; bridges and a jump crossing for the figure-8s, banks, plateaus, a creek;
+      `TRACK_ORDER`; race-check clean both ways; `scripts/track-map.mjs`, `scripts/hit-probe.mjs`; gallery in the README)
 - [ ] The money and upgrade shop; upgrades change TUNING (acceleration, tires = grip, shocks = suspension, top speed)
 - [ ] Race progression with rising CPU difficulty, continues, high scores saved locally
 - [ ] Video + Pages deploy

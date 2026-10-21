@@ -19,11 +19,13 @@ src/
     vehicle.ts       Truck: DynamicRayCastVehicleController + arcade assists; TUNING; surfaces (dirt, water, mud)
   track/
     types.ts         the track JSON schema ("Track format" below)
-    tracks/          one JSON per track + index.ts (registry, getTrack(id, reversed))
-    heights.ts       track JSON → height grid (features: ramp, dip, mound, whoops, ridge; infield; base noise)
+    tracks/          one JSON per track + index.ts (registry, TRACK_ORDER, getTrack(id, reversed))
+    heights.ts       track JSON → height grid (features: ramp, dip, mound, whoops, ridge, bank, plateau; bridges cut
+                     and fill after the sum; infield; base noise)
     line.ts          RacingLine: closed Catmull-Rom spline, arc-length samples, project / pointAt / curvature
-    build.ts         grid → ground mesh, water, mud sheen, tyre walls + flags, start line, flagman tower + start
-                     lamps, stadium dressing, props, colliders, surface queries
+    build.ts         grid → ground mesh (per-track palette), water (ellipses, creek ribbons), mud sheen, tyre walls +
+                     flags, bridge decks + railings, start line, flagman tower + start lamps, stadium dressing, props
+                     (bunting, solid drums), colliders, surface queries, levelAt (deck or ground)
   race/
     session.ts       the world + track + 1–4 trucks and views, effects, physics → game events
     race.ts          the race flow: Get Ready → lamps → race (gates, laps) → finish → results, records, pickups
@@ -85,21 +87,46 @@ faces +z (south) and π/2 faces +x (east).
 | `size {w, d}`, `res` | heightfield extent (centred on 0,0) and cell size (0.5 m) |
 | `baseNoise {amp, freq}` | gentle rolling of the whole floor |
 | `infield?` | optional raised grass polygon |
-| `features[]` | `ramp` (x, z, heading, length, width, height, `planks` to draw boards), `dip`, `mound` (ellipses), `whoops` (bumps across a lane), `ridge` (a raised pink band along a polyline: a hump on every lane it crosses) |
+| `features[]` | `ramp` (x, z, heading, length, width, height, `planks` to draw boards), `dip`, `mound` (ellipses), `whoops` (bumps across a lane), `ridge` (a raised pink band along a polyline: a hump on every lane it crosses; a negative height digs a channel, e.g. a creek bed), `bank` (the ground tilts across a band along a polyline, up to `height` on `side` +1 = left of its direction / -1 = right; it rolls off past the raised edge and fades out past the ends), `plateau` (a flat-topped polygon, sides sloping over `slope` m: tabletops, mesas), `bridge` (below) |
 | `walls[]` | polylines of tyres; `walls[0]` is the closed outer wall; open walls get a flag pole at each free end |
-| `zones[]` | `water` (ellipse, surface `level`, `drag`) and `mud` (ellipse, `drag`, `grip` multiplier); mud is drawn darker and glossy |
-| `start {heading, grid[]}` | grid slots: 0 = the player (pole), then yellow, blue, grey |
-| `line[]` | the racing line's control points, forward direction (closed Catmull-Rom) |
-| `gates[]` | ordered checkpoint segments wall to wall; gate 0 is the start/finish line (drawn chequered) |
+| `zones[]` | `water` (surface `level`, `drag`) and `mud` (`drag`, `grip` multiplier), each an `ellipse` (x, z, rx, rz) or a `path` (`points`, `width`: a band along a polyline, e.g. a creek); mud is drawn darker and glossy |
+| `start {heading, grid[]}` | grid slots: 0 = the player (pole), then yellow, blue, grey; keep them off slopes (trucks roll before the green light) |
+| `line[]` | the racing line's control points, forward direction (closed Catmull-Rom); hairpins drive best as real arcs (a few points on a circle), not a cusp |
+| `gates[]` | ordered checkpoint segments wall to wall; gate 0 is the start/finish line (drawn chequered); a gate must not lie across the other level or lane at a crossing |
 | `hud {panel, name}` | world points of the HUD panel and the track name (an empty spot of the arena) |
 | `flagman {x, z, heading}` | the flagman's tower and start lamps beside the line |
 | `laps?` | default 4 |
 | `reverse {start}` | the reversed variant's grid; the line, the gate order and ramp headings flip automatically (`getTrack(id, true)`, id `<id>-r`) |
-| `props[]` | dressing: `tyre_pile`, `barrel`, `hay_bale` (drawn, not collided) |
+| `props[]` | dressing: `tyre_pile`, `barrel`, `hay_bale`, `cone` (drawn, not collided), `bunting` (pennants on two poles, `len` m across `rot`, standing on the highest ground under it: marks a jump), `drum` (a 3 m banded drum, solid) |
+| `palette?` | the track's accent colours: `dirt`, `dirtDark`, `dirtLight`, `ridge`, `wallA` / `wallB` (the tyre paint bands, bridge stripes), `flag`, `backWall`, `accent` (barrels) |
 
-Adding a track (OR3): write the JSON, register it in `tracks/index.ts`, run
-`node scripts/race-check.mjs <url> <id>` (and `--reverse`), and check that lap times land in 14–18 s with
-`node scripts/lap-probe.mjs <url> <id>`.
+**Bridges (crossings).** A heightfield has one height per point, so a crossover is a `bridge` feature plus its own
+collider: `{type: 'bridge', x, z, heading, width, height, ramp, under: {heading, width, depth, ramp}}`. (x, z) is
+where the two lanes' centrelines cross; `heading` is the upper lane's direction, `under.heading` the lower lane's.
+`heights.ts` first fills an embankment along the upper lane (flat at `height` over the deck span plus a metre, then
+`ramp`-long approaches, sides falling over 2.5 m), then cuts the lower lane's cutting through it (floor at
+`-under.depth` under the whole deck, `under.ramp`-long slopes out, near-vertical walls 0.7 m wide). `build.ts` adds
+the deck: a cuboid collider flush with the embankment top, spanning the cutting where it crosses the deck's full
+width (`spanHalf` = half the cutting width / sin(crossing angle) + the deck's half-width · cot + 0.8 m), drawn as a
+plank slab with striped sides, and two railings (walls from just under the deck to 1.6 m above it, so they never
+reach the lane below). Height + depth − 0.4 m slab must leave ≥ 2.8 m clearance (a truck's chassis tops out about
+1.7 m above its wheels' ground). The lanes' tyre walls meet at the four corners where the edge lines cross (the upper
+lane's walls end at the cutting's edge, the lower lane's at the embankment). Trucks on the deck never touch the lane
+below: the wheels ride the deck collider, and `Session.unstack` ignores trucks more than 2.4 m apart in height.
+`Track.levelAt(x, z, heading)` returns the deck height on a deck footprint when the heading runs along the deck
+(else the ground), and is used to place trucks on the grid, rescued trucks, and pickups on the right level. A
+**jump crossing** (Twister Flats) needs no bridge: the lower route runs in a channel (a negative `ridge` with water)
+between two low berms (`ridge`s) that launch the upper route over it.
+
+Adding a track (OR3): write the JSON, register it in `tracks/index.ts` (and `TRACK_ORDER`), then
+- `node scripts/track-map.mjs <url> <id> [--reverse]`: a top-down map (heights, walls, line with arrows, gates,
+  zones, decks, grid, HUD) to `test-results/map-<id>.png`, plus the line length, its tightest radius, every spot
+  where the line passes < 3 m from a wall, and each gate's crossings by the line (exactly one each, in order);
+- `node scripts/hit-probe.mjs <url> <id> [--reverse] [--alone] [--trace]`: a race on fixed steps that prints the
+  wall hits by 5 m cell, every rescue with where it happened, lap times and resets (`--trace` logs the player's
+  truck once a second: where laps go wrong);
+- `node scripts/race-check.mjs <url> <id>` (and `--reverse`) and `node scripts/load-check.mjs <url> race
+  track=<id> [reverse]`; lap times of 13–18 s (`node scripts/lap-probe.mjs <url> <id>`).
 
 ### Track 1: Rattlesnake Run
 The first track of the original is a four-pass serpentine: the start/finish on the bottom-left, east along the
@@ -110,6 +137,25 @@ truck is 4.5 m, so ~19 truck lengths across, matching the footage's truck-to-are
 lengths), the ridge runs the other way and further right, the ramp is further right and lower, the top-right lane
 has whoops, the rough patch became mud, a second mud patch sits in the top-left corner and a puddle in the left lane.
 The HUD sits in the notch above the top-right lane like the original's. Racing line ≈ 292 m.
+
+### Tracks 2–8 (OR3)
+Each keeps the topology and signature features of the 1989 original's track in the same season slot, with our own
+layout, proportions, feature placement, names and colours. Season order (`TRACK_ORDER`): Rattlesnake Run, Coyote
+Canyon, Bone Yard, Dry Creek Spiral, Twister Flats, Buzzard Bend, Thunder Ridge, Mesa Mayhem. Winning times are from
+`race-check` (4 trucks, player on autopilot), forward / reversed.
+
+| Track | Character (original) | Ours | Line | Winner |
+|---|---|---|---|---|
+| Coyote Canyon | long straights: a serpentine beside a broad banked lane | 4 long E–W passes and a banked left lane (pink, outer side raised), a narrow island under the HUD; two puddles on the top straight, a plank ramp mid-pass, a kicker over a pool, whoops on the start straight; orange/cream walls | 296 m | 69–71 / 68–70 s |
+| Bone Yard | stacked passes that cross in a central pit with water | figure-8 through stacked passes: the N–S connector crosses a deep water pit (the E–W pass) on a bridge; staggered "bone pile" moguls on the top pass, a tabletop beside the pit, whoops and mud on the left lane; bone/black walls | 230 m | 64–65 / 62–63 s |
+| Dry Creek Spiral | spiral in and out, a creek across two lanes, a banked hill, a dark pit | a square spiral (outer ring, inner ring, centre lane) that exits over the inner ring on a bridge; a creek channel with water crosses the top lane and the centre lane into a pond; a banked top-left corner, a dark pit corner, a washboard; blue/white walls | 262 m | 69–75 / 72–74 s |
+| Twister Flats | open figure-8, an X in the open centre, three puddles | an upright "8" with arc hairpins and four small islands; the open crossing is a jump: the SW diagonal runs in a water channel between two pink berms that launch the NW diagonal over it; corner puddles, a banked top straight, moguls; purple/white walls | 293 m | 65–67 / 65–68 s |
+| Buzzard Bend | figure-8 with an X crossing under a striped block | a sideways bow-tie: two triangular loops whose diagonals cross on a striped plank bridge (the other diagonal in a cutting below); a pink plateau, a plank jump, banked corners, moguls; green/white walls | 246 m | 57–61 / 62–63 s |
+| Thunder Ridge | a huge diagonal ridge, every crossing a jump with bunting | four N–S columns and a return lane; one long pink ridge crosses every column (four jumps a lap, bunting over each), plank ramps, a moguls pen with the HUD; yellow/black walls | 208 m | 62–68 / 62–67 s |
+| Mesa Mayhem | open arena around a zig-zag island, drums, ledges | a zig-zag island with teeth from the top and bottom walls (the line snakes), a 2 m mesa on the right loop to climb and fly off, two tabletops on the start straight, four solid giant drums, a walled bay for the HUD; red/lilac walls | 190 m | 55–58 / 55–59 s |
+
+The two serpentines (Rattlesnake Run, Coyote Canyon) and the spiral are a little slower (winners up to ~72–75 s in
+traffic) than the 53–71 s band; everything else lands inside it. CPU resets are rare (0–1 per race).
 
 ### Truck physics (OR1)
 - Rapier `DynamicRayCastVehicleController` on a 1200 kg box chassis (1.9 × 0.84 × 4.5 m, centre of mass 0.45 m
