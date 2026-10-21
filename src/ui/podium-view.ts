@@ -23,7 +23,11 @@ const STEP_H = [1.15, 0.8, 0.5, 0];
 const STEP_COLOURS = ['#f2c94c', '#cfd3da', '#d08a4a'];
 /** Plate order left to right: 2nd, 1st, 3rd, 4th (the winner raised in the middle). */
 const COLUMN_OF_PLACE = [1, 0, 2, 3];
-const TROPHY_SCALE = 1.7;
+/** The Pro Racer cup (0.84 m) held up in one hand. */
+const TROPHY_SCALE = 0.95;
+/** The Pro Racer podium (three discs, 5.34 m wide) scaled so its discs sit over the plates' columns. */
+const PODIUM_SCALE = 2;
+const CONFETTI = 260;
 
 let shared: PodiumView | null = null;
 
@@ -39,6 +43,7 @@ export function preloadPodium() {
     if (!i) return;
     void loadCharacters(COLOURS.map(driverModel));
     void loadModel('trophy');
+    void loadModel('podium');
   });
 }
 
@@ -51,6 +56,10 @@ export class PodiumView {
   private chars: Character[] = [];
   private trophy: THREE.Object3D | null = null;
   private winner: Character | null = null;
+  /** Step heights by place, from the podium model once it loaded (else the procedural STEP_H). */
+  private stepH = [...STEP_H];
+  private boxes: THREE.Object3D[] = [];
+  private confetti: Confetti | null = null;
   private raf = 0;
   private last = 0;
   private token = 0;
@@ -122,7 +131,69 @@ export class PodiumView {
       box.castShadow = true;
       box.receiveShadow = true;
       this.scene.add(box);
+      this.boxes.push(box);
     }
+  }
+
+  /**
+   * Swap the procedural steps for the Pro Racer podium (ssg.models.json `podium`, three black discs) once it loads:
+   * the disc tops (found by casting rays down at each column) become the step heights, and each disc gets its
+   * place number on the front.
+   */
+  private podiumModel: Promise<void> | null = null;
+  private usePodiumModel() {
+    this.podiumModel ??= (async () => {
+      const model = await loadModel('podium');
+      if (!model) return;
+      const podium = model.scene.clone(true);
+      podium.scale.setScalar(PODIUM_SCALE);
+      // The middle disc stands over the winner's column.
+      const cx = (COLUMN_OF_PLACE[0] - 1.5) * PITCH;
+      podium.position.set(cx, 0, 0);
+      podium.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) o.castShadow = o.receiveShadow = true;
+      });
+      this.scene.add(podium);
+      podium.updateMatrixWorld(true);
+      const ray = new THREE.Raycaster();
+      const heights: number[] = [];
+      for (let place = 1; place <= 3; place++) {
+        const x = (COLUMN_OF_PLACE[place - 1] - 1.5) * PITCH;
+        ray.set(new THREE.Vector3(x, 10, 0), new THREE.Vector3(0, -1, 0));
+        heights.push(ray.intersectObject(podium, true)[0]?.point.y ?? STEP_H[place - 1]);
+      }
+      // Discs taller in place order (the model's middle disc is the 1st place, its sides the same height).
+      this.stepH = [...heights, 0];
+      for (const b of this.boxes) b.visible = false;
+      for (let place = 1; place <= 3; place++) {
+        const x = (COLUMN_OF_PLACE[place - 1] - 1.5) * PITCH;
+        const h = heights[place - 1];
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const draw = () => {
+          const g = c.getContext('2d')!;
+          g.clearRect(0, 0, 64, 64);
+          g.fillStyle = STEP_COLOURS[place - 1];
+          g.font = '44px "Press Start 2P", monospace';
+          g.textAlign = 'center';
+          g.textBaseline = 'middle';
+          g.fillText(String(place), 34, 36);
+        };
+        draw();
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        void document.fonts?.load('40px "Press Start 2P"').then(() => {
+          draw();
+          tex.needsUpdate = true;
+        });
+        const size = Math.min(0.9, h * 0.8);
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+        // On the front of the disc (radius: half the model's 1.63 m depth).
+        label.position.set(x, h / 2, 0.82 * PODIUM_SCALE + 0.02);
+        this.scene.add(label);
+      }
+    })();
+    return this.podiumModel;
   }
 
   /** Put the drivers on the podium (top three, plus 4th beside it) and start animating inside `parent`. */
@@ -132,16 +203,17 @@ export class PodiumView {
     parent.appendChild(this.canvas);
     this.clearStage();
     this.ready = (async () => {
-      const [drivers, trophy, truckModels] = await Promise.all([
+      const [drivers, trophy, , truckModels] = await Promise.all([
         loadCharacters(entries.map((e) => driverModel(e.colour))),
         loadModel('trophy'),
+        this.usePodiumModel(),
         trucks === undefined ? loadTruckModels() : Promise.resolve(trucks),
       ]);
       if (token !== this.token) return false;
       for (const e of entries) {
         const col = COLUMN_OF_PLACE[e.place - 1] ?? 3;
         const x = (col - 1.5) * PITCH;
-        const y = STEP_H[e.place - 1] ?? 0;
+        const y = this.stepH[e.place - 1] ?? 0;
         // The truck parked behind its driver, nose towards the camera and turned a little.
         const tv = new TruckView(e.hex, truckModels?.[e.colour]);
         tv.root.position.set(x + (e.place === 4 ? 0.3 : 0), TruckView.groundLift, -4.1);
@@ -156,10 +228,10 @@ export class PodiumView {
         // Stagger the loops so the waves are not in step.
         const offset = e.place * 0.37;
         if (e.place === 1) {
-          ch.play(CLIPS.victory, { once: true, then: CLIPS.cheer, fade: 0 });
+          ch.play(CLIPS.victory, { once: true, then: CLIPS.trophy, fade: 0 });
           this.winner = ch;
-        } else if (e.place === 2) ch.play(CLIPS.wave, { fade: 0, offset });
-        else if (e.place === 3) ch.play(ch.has(CLIPS.waveSmall) ? CLIPS.waveSmall : CLIPS.wave, { fade: 0, offset });
+        } else if (e.place === 2) ch.play(CLIPS.clap, { fade: 0, offset });
+        else if (e.place === 3) ch.play(CLIPS.fist, { fade: 0, offset });
         else ch.play(ch.has(CLIPS.dejected) ? CLIPS.dejected : CLIPS.idle, { fade: 0, offset });
         this.stage.add(ch.root);
         this.chars.push(ch);
@@ -168,6 +240,11 @@ export class PodiumView {
         this.trophy = trophy.scene.clone(true);
         this.trophy.scale.setScalar(TROPHY_SCALE);
         this.stage.add(this.trophy);
+      }
+      // Confetti over the winner's step.
+      if (drivers && Object.keys(drivers).length) {
+        this.confetti = new Confetti(CONFETTI, (COLUMN_OF_PLACE[0] - 1.5) * PITCH);
+        this.stage.add(this.confetti.mesh);
       }
       this.tick(0);
       return true;
@@ -185,13 +262,15 @@ export class PodiumView {
   /** Advance the clips by dt and draw (also used directly by tests). */
   tick(dt: number) {
     for (const c of this.chars) c.update(dt);
+    this.confetti?.update(dt);
     if (this.trophy && this.winner) {
       // The trophy rides in the winner's right hand but stays upright (independent of the hand bone's axes).
       const hand = this.winner.socket('hand_r');
       this.winner.root.updateMatrixWorld(true);
       if (hand) hand.getWorldPosition(this.trophy.position);
       else this.winner.root.getWorldPosition(this.trophy.position).add(new THREE.Vector3(0.4, 1.2, 0.3));
-      this.trophy.position.y -= 0.12;
+      // Hold the cup by its stem: the hand is a little under the bowl.
+      this.trophy.position.y -= 0.22;
       this.trophy.rotation.y = Math.sin(performance.now() / 600) * 0.25;
     }
     this.resize();
@@ -226,6 +305,7 @@ export class PodiumView {
     this.chars = [];
     this.winner = null;
     this.trophy = null;
+    this.confetti = null;
     this.stage.clear();
   }
 
@@ -239,5 +319,45 @@ export class PodiumView {
     this.stop();
     this.canvas.remove();
     this.clearStage();
+  }
+}
+
+/** Confetti: small paper squares falling and fluttering over the winner, recycled at the top (one draw call). */
+class Confetti {
+  readonly mesh: THREE.InstancedMesh;
+  private p: { pos: THREE.Vector3; vel: THREE.Vector3; spin: THREE.Vector3; rot: THREE.Euler; phase: number }[] = [];
+  private m = new THREE.Matrix4();
+  private q = new THREE.Quaternion();
+  private one = new THREE.Vector3(1, 1, 1);
+
+  constructor(n: number, private cx: number) {
+    const geo = new THREE.PlaneGeometry(0.12, 0.08);
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), n);
+    this.mesh.frustumCulled = false;
+    const colours = ['#f2c94c', '#e8413c', '#3f7be0', '#4fc26a', '#f4f1ea', '#e85fb0'].map((c) => new THREE.Color(c));
+    for (let i = 0; i < n; i++) {
+      this.p.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), spin: new THREE.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8), rot: new THREE.Euler(), phase: Math.random() * 6 });
+      this.spawn(i, true);
+      this.mesh.setColorAt(i, colours[i % colours.length]);
+    }
+  }
+
+  private spawn(i: number, anywhere: boolean) {
+    const c = this.p[i];
+    c.pos.set(this.cx + (Math.random() - 0.5) * 9, anywhere ? Math.random() * 7 : 6.5 + Math.random() * 1.5, -2 + Math.random() * 4);
+    c.vel.set((Math.random() - 0.5) * 0.4, -0.7 - Math.random() * 0.6, 0);
+  }
+
+  update(dt: number) {
+    this.p.forEach((c, i) => {
+      c.phase += dt * 3;
+      c.pos.addScaledVector(c.vel, dt);
+      c.pos.x += Math.sin(c.phase) * 0.4 * dt;
+      if (c.pos.y < 0.02) this.spawn(i, false);
+      c.rot.set(c.rot.x + c.spin.x * dt, c.rot.y + c.spin.y * dt, c.rot.z + c.spin.z * dt);
+      this.q.setFromEuler(c.rot);
+      this.mesh.setMatrixAt(i, this.m.compose(c.pos, this.q, this.one));
+    });
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
