@@ -69,7 +69,7 @@ export interface BankFeature {
   side: 1 | -1;
 }
 
-/** A flat-topped tableland over a polygon, its sides sloping down over `slope` metres outside the polygon. */
+/** A flat-topped tabletop (a mesa) over a polygon, its sides sloping down over `slope` metres outside the polygon. */
 export interface PlateauFeature {
   type: 'plateau';
   points: XZ[];
