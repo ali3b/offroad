@@ -1,24 +1,34 @@
 # Off Road
 
-A 3D arcade off-road racer in the browser. Four trucks, one track per screen seen from high above, jumps, whoops,
-water and nitros. It is built with three.js and Rapier, and its models come from Synty assets through an
+[![Off Road gameplay](https://ali3b.github.io/offroad/videos/offroad.gif)](https://ali3b.github.io/offroad/videos/offroad-trailer.mp4)
+
+**[Play it in your browser: ali3b.github.io/offroad](https://ali3b.github.io/offroad/)** ·
+[Trailer](https://ali3b.github.io/offroad/videos/offroad-trailer.mp4) ·
+[Gallery](https://ali3b.github.io/offroad/gallery.html)
+
+A 3D arcade off-road racer in the browser. Four trucks, one stadium track per screen seen from high above, jumps,
+whoops, mud, water and nitros. It is built with three.js and Rapier, and its models come from Synty assets through an
 agent-driven asset pipeline: the game asks a command-line tool for game-ready GLB models and never touches the
 source assets by hand.
 
-![A race on Rattlesnake Run](docs/screenshots/race-rattlesnake.png)
+## Features
 
-**Status:** all eight tracks and a full race on each, forward or reversed. Four trucks race four laps; three CPU
-drivers follow the racing line, bump you, fire nitros on the straights and pick up money bags and nitro bottles.
-A flagman and a lamp tree start the race; the podium pays $100K / $90K / $80K / $70K and keeps the track record.
-Around the races runs a season: a title screen with a demo race, sign-up with your initials and truck colour,
-cash and credits (beat every CPU truck for a free race; lose to one and it costs a credit), a Speed Shop between
-races (nitro, acceleration, tires, shocks, top speed) and a track rotation that adds tracks and flips their
-direction as the season goes on. The trucks are lifted Synty pickups in four paints and the trackside props (tyre
-piles, barrels, hay bales, floodlight trailers) are Synty models too, all exported as GLBs by `npm run assets`.
-After each race the podium is a little 3D scene: the top three drivers (Synty characters) stand on the steps in
-front of their trucks, the winner celebrates and raises the trophy, 2nd and 3rd wave and 4th slumps. A crowd of
-Synty fans fills the grandstand and cheers at the finish and at big jumps. F2 (or the title menu) switches on a
-DOS look: 200 lines, a 256- or 16-colour palette and scanlines.
+- **Eight stadium tracks**, each also raced in reverse: bridges, a jump crossing, banked lanes, plateaus, a creek,
+  whoops, mud and water.
+- **Four-truck, four-lap races** against three CPU drivers who follow the racing line, bump you, fire nitros on the
+  straights and grab money bags and nitro bottles. A flagman and a lamp tree start every race.
+- **A season**: sign up with your initials and truck colour, win prize money ($100K / $90K / $80K / $70K), keep
+  your credits by beating every CPU truck, and spend your cash in the **Speed Shop** (nitro, acceleration, tires,
+  shocks, top speed). The track rotation adds tracks and flips their direction as the season goes on.
+- **A 3D podium** after every race: the top three drivers on the steps in front of their trucks, the winner raising
+  the trophy, 2nd and 3rd waving, 4th slumped; prize money, times and the track record.
+- **A crowd** in the grandstand that cheers at the finish and at big jumps.
+- **FM-style music and sound effects** synthesised in the browser: engines, skids, splashes, crashes, countdown.
+- **A title screen with a demo race** and an attract loop with racing hints.
+- **The DOS look** (F2): 200 lines, a 256- or 16-colour palette and scanlines.
+- Keyboard and gamepad.
+
+![A race on Rattlesnake Run](docs/screenshots/race-rattlesnake.png)
 
 ![The title screen over the demo race](docs/screenshots/title.png)
 ![The Speed Shop](docs/screenshots/shop.png)
@@ -48,6 +58,7 @@ Eight stadium tracks in season order, each also raced in reverse (`?scene=race&t
 | Reset (standalone race: back to Get Ready!) | R | Back |
 | Menus: move / confirm / back | Arrows or WASD / Enter or Space / Esc | D-pad or stick / A or Start / B |
 | Race again (standalone race results) | Enter | A or Start |
+| Mute | M | |
 | DOS look (off, 256, 16 colours) | F2 | |
 | Debug overlay | F3 | |
 
@@ -73,14 +84,23 @@ node scripts/track-map.mjs http://localhost:5199 twister # a top-down layout map
 node scripts/hit-probe.mjs http://localhost:5199 thunder # where trucks hit walls or get rescued
 node scripts/lap-probe.mjs http://localhost:5199         # lap times for feel tuning
 node scripts/feel-probe.mjs                              # physics numbers for tuning
-node scripts/record.mjs http://localhost:5199 gameplay   # test-results/video/gameplay.mp4
+node scripts/record.mjs http://localhost:5199 gameplay   # test-results/video/gameplay.mp4 (one scripted lap)
+node scripts/trailer.mjs http://localhost:5199           # the trailer with sound, the short and the GIF
 npm run build        # dist/ (relative base, ready for GitHub Pages)
-node scripts/deploy-pages.mjs                            # build and push gh-pages
+node scripts/deploy-pages.mjs --no-push                  # dist/ + models + videos + gallery.html, no push
+node scripts/deploy-pages.mjs                            # the same, then push gh-pages
 ```
 
 Models are generated locally and are not committed: Synty assets can't be redistributed as source files.
 
 ## Credits
 
-3D models: Synty Studios POLYGON packs, used under the Synty Store EULA.
-Font: Press Start 2P by CodeMan38 (SIL Open Font License), via @fontsource.
+Built with three.js and Rapier. 3D assets: Synty Studios POLYGON packs (licensed), exported through the
+synty-sprite-generator pipeline. Music and sound synthesised in the browser. Font: Press Start 2P by CodeMan38
+(SIL Open Font License), via @fontsource.
+
+## Licence
+
+The code is MIT licensed (see [LICENSE](LICENSE)). The Synty assets are **not** covered by that licence: they are
+used under the Synty Store EULA, are not in this repository, and may not be extracted from the game or its
+published build. Track names, art direction, music and sound are our own.

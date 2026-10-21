@@ -60,8 +60,11 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
     credits, continue, game over); writes `test-results/season-*.png`.
 - `npm test` (vitest): the pure season logic (rotation, shop, credits).
 - Look at the screenshots. Tick the milestone in `TODO.md`, update `FEEDBACK.md`, and commit in this repo.
-- Release: `node scripts/record.mjs http://localhost:5199 <name>` → `test-results/video/<name>.mp4`;
-  `node scripts/deploy-pages.mjs` → gh-pages.
+- Release: `node scripts/trailer.mjs http://localhost:5199` → `test-results/video/offroad-trailer.mp4` (with sound),
+  `offroad-short.mp4` and `offroad.gif` (`--cut-only` re-cuts the saved takes; `--take=<name>` re-records one);
+  `node scripts/record.mjs http://localhost:5199 <name>` → a one-lap `test-results/video/<name>.mp4`;
+  `node scripts/deploy-pages.mjs [--no-push]` → dist/ (game + models + videos + gallery.html) → gh-pages. Videos
+  never go into master: they live in test-results/ and the Pages build.
 
 ## Reference material
 `research/` (git-ignored) holds `ORIGINAL.md`, the study of the 1989 original: rules, economy, track sketches, screens and HUD. It names the original, so it never goes into git or onto Pages. Use our own names in code and public text.
