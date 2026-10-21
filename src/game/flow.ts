@@ -10,7 +10,12 @@
 // One Loop (fixed 60 Hz physics) drives whatever RaceScene is current; menus read their input once per frame.
 import * as THREE from 'three';
 import { Loop } from '../engine/loop';
-import { clearPressed, confirmPressed, drainMenu, padsFor, readInput, readPlayers, resetRequested, wasPressed, type Control, type KeyScheme, type MenuEvent } from '../engine/input';
+import { clearPressed, confirmPressed, drainMenu, onInputMode, padsFor, readInput, readPlayers, resetRequested, takeTap, wasPressed, type Control, type KeyScheme, type MenuEvent } from '../engine/input';
+import { applyQuality, onQuality, qualityInfo, watchFps } from '../engine/quality';
+import { getAudio } from '../audio';
+import { TouchControls } from '../ui/touch/controls';
+import { PauseMenu, type PauseChoice } from '../ui/touch/pause';
+import { portraitBlocked, setHumanCheck } from '../ui/touch/mobile';
 import { NO_INPUT, TUNING, type TruckInput } from '../physics/vehicle';
 import { events, type ScreenName } from '../race/events';
 import type { TruckModels } from '../race/models';
@@ -62,6 +67,12 @@ export class Flow {
   private demoRebuild = false;
   private readyT = 0;
   private readyScene: RaceScene | null = null;
+  /** The on-screen race controls (touch mode) and the pause menu. */
+  readonly touch = new TouchControls();
+  readonly pause: PauseMenu;
+  /** The race is paused (the pause menu is up): no physics steps. */
+  paused = false;
+  private reserveKey = '';
 
   constructor(
     readonly renderer: THREE.WebGLRenderer,
@@ -72,11 +83,76 @@ export class Flow {
     if (params.has('debug')) this.debug.toggle(true);
     this.loop = new Loop({ step: (dt) => this.step(dt), render: (_a, frameDt) => this.render(frameDt) });
     window.addEventListener('resize', () => this.resize());
+    this.pause = new PauseMenu({ onChoose: (c) => this.pauseChoice(c), soundLabel: () => (getAudio().settings.muted ? 'OFF' : 'ON') });
+    // The touch controls come and go with the input mode: re-fit the camera around them.
+    onInputMode(() => this.syncTouch());
+    onQuality(() => {
+      applyQuality(this.renderer);
+      this.race?.applyQuality();
+    });
+    setHumanCheck((i) => !!this.race && this.race.mode !== 'demo' && this.race.session.isHuman(i));
+    // Leaving the page (or the app) mid-race pauses it.
+    document.addEventListener('visibilitychange', () => document.hidden && this.driving() && this.openPause());
+  }
+
+  // ---- touch, pause ----------------------------------------------------------------------------------------------
+
+  /** A race the player drives is on screen (season race or standalone), not finished. */
+  private driving() {
+    const st = this.state;
+    return (st === 'race' || st === 'standalone') && !!this.race && !this.race.resultsShown;
+  }
+
+  /** Show / hide the touch controls and the II button; re-fit the camera when what they cover changes. */
+  private syncTouch() {
+    const on = this.driving() && !this.paused;
+    this.touch.show(on);
+    this.pause.showButton(on);
+    const r = this.touch.reserve();
+    const key = r ? `${r.left},${r.right},${r.bottom},${window.innerWidth}x${window.innerHeight}` : '';
+    if (key !== this.reserveKey) {
+      this.reserveKey = key;
+      this.race?.resize(r);
+    }
+  }
+
+  openPause() {
+    if (this.paused || !this.driving()) return;
+    this.paused = true;
+    this.touch.release();
+    this.pause.show(this.state === 'standalone');
+    void getAudio().ctx?.suspend();
+    this.syncTouch();
+  }
+
+  private closePause() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.pause.hide();
+    clearPressed();
+    void getAudio().ctx?.resume();
+    this.syncTouch();
+  }
+
+  private pauseChoice(c: PauseChoice) {
+    if (c === 'sound') {
+      const a = getAudio();
+      a.setMuted(!a.settings.muted);
+      return;
+    }
+    this.closePause();
+    if (c === 'restart') this.race?.restart();
+    else if (c === 'quit') void this.toTitle();
   }
 
   // ---- scenes and screens --------------------------------------------------------------------------------------
 
   private setScreen(name: FlowState, screen: Screen | null) {
+    if (this.paused) {
+      this.paused = false;
+      this.pause.hide();
+      void getAudio().ctx?.resume();
+    }
     this.screen?.dispose();
     this.screen = screen;
     if (screen) document.body.appendChild(screen.el);
@@ -106,7 +182,8 @@ export class Flow {
 
   resize() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.race?.resize();
+    this.reserveKey = '';
+    this.race?.resize(this.touch.reserve());
   }
 
   // ---- states --------------------------------------------------------------------------------------------------
@@ -246,6 +323,7 @@ export class Flow {
       credits: me.credits,
       note: noteOf(o),
       prompt: anyOut ? 'PRESS START OR (A)' : 'PRESS START OR (A) FOR THE SPEED SHOP',
+      touchPrompt: anyOut ? 'TAP TO GO ON' : 'TAP FOR THE SPEED SHOP',
       // Slot = player index (the line-up puts the humans first).
       humans: s.players.map((p, i) => ({ slot: i, nick: p.initials, hex: HEX[p.colour], cash: p.cash, credits: p.credits, note: noteOf(s.last!.outcomes[i]) })),
     });
@@ -361,7 +439,7 @@ export class Flow {
 
   private step(dt: number) {
     const r = this.race;
-    if (!r) return;
+    if (!r || this.paused) return;
     const st = this.state;
     const driving = st === 'race' || st === 'standalone';
     if (driving && st === 'standalone' && resetRequested()) r.restart();
@@ -380,12 +458,26 @@ export class Flow {
     if (wasPressed('F3')) this.debug.toggle();
     if (wasPressed('F2')) toast(`DOS LOOK: ${dosLabel(cycleDosLook())}`);
     const st = this.state;
-    // Menus: every press goes to the screen; the results podium waits for confirm.
-    if (st === 'standalone') {
-      if (this.race?.resultsShown && confirmPressed()) this.race.restart();
+    const isPause = (e: MenuEvent) => e.tap === 'pause' || e.key === 'back' || e.letter === 'P';
+    // Menus: every press goes to the screen; the results podium waits for confirm. A race pauses on Esc / P / II.
+    if (this.paused) {
+      for (const e of drainMenu()) this.pause.input(e);
+    } else if (st === 'standalone') {
+      // Standalone: R and Enter are read as key presses (resetRequested, confirmPressed), so don't drain the keys.
+      const tapConfirm = takeTap((e) => e.key === 'confirm');
+      if (this.race?.resultsShown && (confirmPressed() || tapConfirm)) this.race.restart();
+      else if (takeTap((e) => e.tap === 'pause') || wasPressed('Escape') || wasPressed('KeyP')) this.openPause();
     } else {
-      for (const e of drainMenu()) this.press(e);
+      for (const e of drainMenu()) {
+        if (st === 'race' && isPause(e)) this.openPause();
+        else this.press(e);
+      }
     }
+    // Portrait on a touch screen (the rotate card) pauses a race.
+    if (portraitBlocked() && this.driving()) this.openPause();
+    this.syncTouch();
+    // Auto quality: a slow race drops to low (engine/quality.ts).
+    if (this.race && (this.driving() || st === 'title') && watchFps(this.loop.fps, frameDt)) toast('QUALITY: LOW (AUTO)');
     this.screen?.tick?.(frameDt);
     if (this.state === 'getready') {
       this.readyT += frameDt;
@@ -417,6 +509,8 @@ export class Flow {
     if (e.player !== undefined) return e.player;
     const s = this.season;
     if (!s || s.players.length <= 1 || !e.src || e.src === 'kb') return undefined;
+    // Taps are player 1's (a touch player is always player 1).
+    if (e.src === 'touch') return 0;
     if (e.src === 'wasd' || e.src === 'arrows') {
       const i = s.players.findIndex((p) => p.keys === e.src);
       return i >= 0 ? i : -1;
@@ -485,6 +579,10 @@ export class Flow {
         return this.controls.map((c, i) => ({ ...c, padNow: pads[i] }));
       },
       reset: () => scene().session.reset(),
+      /** Render quality: setting, level, why; `{ watchFps: true }` turns the fps watch on under webdriver. */
+      quality: (o?: { watchFps?: boolean }) => qualityInfo(o),
+      /** The touch controls: visible, the input they send, how the camera made room. */
+      touch: () => ({ visible: this.touch.visible, input: this.touch.last, reserve: this.touch.reserve(), fit: this.race?.fit ?? null, paused: this.paused }),
       place: (x: number, z: number, heading = 0, lift = 1.4) => {
         const s = scene().session;
         s.truck.place({ x, z, y: s.track.heightAt(x, z) + lift, heading });

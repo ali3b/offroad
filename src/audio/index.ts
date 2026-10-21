@@ -56,6 +56,9 @@ export class AudioSystem {
     const unlock = () => this.unlock();
     window.addEventListener('keydown', unlock, { capture: true });
     window.addEventListener('pointerdown', unlock, { capture: true });
+    // iOS Safari only lets a touchend / click start audio (not pointerdown / touchstart).
+    window.addEventListener('touchend', unlock, { capture: true });
+    window.addEventListener('click', unlock, { capture: true });
     window.addEventListener('keydown', (e) => {
       const t = e.target;
       const typing = t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && !['range', 'checkbox', 'button', 'radio'].includes(t.type));
