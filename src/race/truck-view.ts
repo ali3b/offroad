@@ -9,6 +9,13 @@ export const TRUCK_COLOURS = { red: '#d42a26', yellow: '#e8c020', blue: '#2f5fd8
 
 /** Suspension length at rest under the truck's weight (m): where the model's axle line sits. */
 const SAG_LENGTH = 0.45;
+/**
+ * How much bigger than the physics the model truck is drawn (on top of the wheelbase fit). The original draws its
+ * trucks chunky for the arena so they read from the far camera; 1.0 would be the 2.9 m physics wheelbase exactly.
+ * The lifted pickup is also wider than the 1.9 m chassis (3.85 m over the tyres at full size), so trucks look a
+ * touch closer together than they collide.
+ */
+export const TRUCK_LOOK = 1.12;
 const WHEEL_KEYS = ['fl', 'fr', 'rl', 'rr'] as const;
 
 interface ModelWheel {
@@ -40,14 +47,20 @@ export class TruckView {
   private buildModel(model: LoadedModel) {
     const scene = model.scene.clone(true);
     const m = model.manifest;
-    // Fit the model's length to the physics chassis (+ bumpers), so the box collider and the look agree.
-    const len = m.bounds?.size?.[2] ?? TUNING.half.z * 2;
-    // OR-FB-002: the export has no target size, so the game scales the GLB to its physics chassis.
-    this.modelScale = Math.min(1.6, Math.max(0.6, (TUNING.half.z * 2 * 1.06) / len));
+    const W = TUNING.wheel;
+    // OR-FB-002: the export has no target size, so the game scales the GLB itself. The model's wheelbase is fitted
+    // to the physics wheelbase (the wheels then sit over the raycast contacts), times TRUCK_LOOK.
+    const fl = m.wheels?.fl;
+    const rl = m.wheels?.rl;
+    const base = fl?.pos && rl?.pos ? Math.abs(fl.pos[2] - rl.pos[2]) : 0;
+    const fit = base > 0.5 ? (W.zFront - W.zRear) / base : (TUNING.half.z * 2 * 1.06) / (m.bounds?.size?.[2] ?? TUNING.half.z * 2);
+    this.modelScale = fit * TRUCK_LOOK;
     const holder = new THREE.Group();
     holder.scale.setScalar(this.modelScale);
-    // Origin axle-centre: the model's y = 0 is the axle line; put it where our wheel centres sit at rest.
-    holder.position.y = TUNING.wheel.y - SAG_LENGTH;
+    // Origin axle-centre: the model's y = 0 is its axle line. Sit the (scaled) tyres on the ground where the
+    // physics wheels touch it at rest, so a bigger model wheel lifts the body instead of sinking into the dirt.
+    const r = (fl?.radius ?? W.radius / this.modelScale) * this.modelScale;
+    holder.position.y = W.y - SAG_LENGTH - W.radius + r;
     holder.add(scene);
     this.root.add(holder);
     this.modelWheels = WHEEL_KEYS.map((k) => {
