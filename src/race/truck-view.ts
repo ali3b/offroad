@@ -10,9 +10,9 @@ export const TRUCK_COLOURS = { red: '#d42a26', yellow: '#e8c020', blue: '#2f5fd8
 /** Suspension length at rest under the truck's weight (m): where the model's axle line sits. */
 const SAG_LENGTH = 0.45;
 /**
- * How much bigger than the physics the model truck is drawn (on top of the wheelbase fit). The original draws its
- * trucks chunky for the arena so they read from the far camera; 1.0 would be the 2.9 m physics wheelbase exactly.
- * The lifted pickup is also wider than the 1.9 m chassis (3.85 m over the tyres at full size), so trucks look a
+ * Style: how much bigger than the physics the model truck is drawn. The export is fitted to the 4.5 m chassis
+ * (ssg.models.json `fit`); the original draws its trucks chunky for the arena so they read from the far camera, so we
+ * draw them 12% bigger. The fitted pickup is 2.53 m wide over the tyres against the 1.9 m chassis, so trucks look a
  * touch closer together than they collide.
  */
 export const TRUCK_LOOK = 1.12;
@@ -20,6 +20,7 @@ const WHEEL_KEYS = ['fl', 'fr', 'rl', 'rr'] as const;
 
 interface ModelWheel {
   node: THREE.Object3D;
+  unit: number;
   basePos: THREE.Vector3;
   baseQuat: THREE.Quaternion;
   axis: THREE.Vector3;
@@ -48,27 +49,28 @@ export class TruckView {
     const scene = model.scene.clone(true);
     const m = model.manifest;
     const W = TUNING.wheel;
-    // OR-FB-002: the export has no target size, so the game scales the GLB itself. The model's wheelbase is fitted
-    // to the physics wheelbase (the wheels then sit over the raycast contacts), times TRUCK_LOOK.
-    const fl = m.wheels?.fl;
-    const rl = m.wheels?.rl;
-    const base = fl?.pos && rl?.pos ? Math.abs(fl.pos[2] - rl.pos[2]) : 0;
-    const fit = base > 0.5 ? (W.zFront - W.zRear) / base : (TUNING.half.z * 2 * 1.06) / (m.bounds?.size?.[2] ?? TUNING.half.z * 2);
-    this.modelScale = fit * TRUCK_LOOK;
+    // The export is already at the physics size (ssg.models.json `fit: { length: 4.5 }`, the chassis length), so
+    // the wheels sit over the raycast contacts. TRUCK_LOOK draws it a touch chunkier as a style choice.
+    this.modelScale = TRUCK_LOOK;
     const holder = new THREE.Group();
     holder.scale.setScalar(this.modelScale);
     // Origin axle-centre: the model's y = 0 is its axle line. Sit the (scaled) tyres on the ground where the
     // physics wheels touch it at rest, so a bigger model wheel lifts the body instead of sinking into the dirt.
+    const fl = m.wheels?.fl;
     const r = (fl?.radius ?? W.radius / this.modelScale) * this.modelScale;
     holder.position.y = W.y - SAG_LENGTH - W.radius + r;
     holder.add(scene);
     this.root.add(holder);
+    this.root.updateMatrixWorld(true);
     this.modelWheels = WHEEL_KEYS.map((k) => {
       const w = m.wheels?.[k];
       const node = w ? scene.getObjectByName(w.node) : undefined;
       if (!w || !node) return null;
+      // Metres in the truck's frame per unit of the node's position (the GLB root carries the export's fit scale).
+      const unit = node.parent ? node.parent.getWorldScale(new THREE.Vector3()).y : this.modelScale;
       return {
         node,
+        unit,
         basePos: node.position.clone(),
         baseQuat: node.quaternion.clone(),
         axis: new THREE.Vector3(...w.axle).normalize(),
@@ -130,7 +132,7 @@ export class TruckView {
         const w = this.modelWheels[i];
         if (!w) continue;
         w.node.position.copy(w.basePos);
-        w.node.position.y += (SAG_LENGTH - len) / this.modelScale;
+        w.node.position.y += (SAG_LENGTH - len) / w.unit;
         _spin.setFromAxisAngle(w.axis, rot);
         _steer.setFromAxisAngle(UP, w.steer ? steerRad : 0);
         w.node.quaternion.copy(w.baseQuat).multiply(_steer).multiply(_spin);

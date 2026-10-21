@@ -358,7 +358,7 @@ afterwards: `__HAS_MODELS__` (vite.config.ts) is decided at server start, so a m
 
 | Name | Asset | Notes |
 |---|---|---|
-| `truck_red/blue/yellow/grey` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | tint #c62828 / #1e5bc6 / #f2c618 / #8a8f94, `origin: axle-centre`, 1024 px |
+| `truck_red/blue/yellow/grey` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | tint #c62828 / #1e5bc6 / #f2c618 / #8a8f94, `origin: axle-centre`, `fit: { length: 4.5 }`, 1024 px |
 | `tire_pile`, `tire_stack` | Apocalypse `SM_Prop_Tire_Pile_01`, BattleRoyale `SM_Prop_TireStack_01` | kind `tyre_pile` (variant by position) |
 | `barrel`, `barrel_coloured` | Apocalypse `SM_Prop_Barrel_01`, `SM_Prop_Barrel_Coloured_01` | kind `barrel` |
 | `hay_bale` | War `SM_Prop_Hay_Bale_01` | kind `hay_bale` |
@@ -370,15 +370,15 @@ camera), trucks 1024 px WebP. Tried and dropped: billboards (their sign art does
 stadium light mast (the light-pole pieces are modular parts, OR-FB-007), the Apocalypse tyre wall and a traffic
 light for the start tree (see below).
 
-**Trucks** (`race/truck-view.ts`). `loadTruckModels()` loads `truck_<colour>`; `TruckView` draws the GLB inside a
-holder scaled so the model's wheelbase (`wheels.fl.pos` → `wheels.rl.pos`, 4.33 m) matches the physics wheelbase
-(2.9 m) times `TRUCK_LOOK = 1.12` (OR-FB-002: no target size in the export). The truck is then ~5.1 m long,
-2.9 m wide over the tyres, with 0.63 m wheels, against the 4.5 × 1.9 m chassis and 0.5 m raycast wheels. That is
-deliberately chunky, like the original's trucks, so they read at the far camera; the look is a little wider than
-the collider, so trucks look a touch closer than they bump. The axle-centre origin is placed so the scaled tyres
-touch the ground where the raycast wheels do at rest (a bigger model wheel lifts the body rather than sinking).
+**Trucks** (`race/truck-view.ts`). `loadTruckModels()` loads `truck_<colour>`. The specs ask the exporter for
+`fit: { length: 4.5 }`, the physics chassis length, so the GLB arrives at the game's size: 4.5 m long, 2.53 m wide
+over the tyres, a 2.85 m wheelbase (physics 2.9 m) and 0.55 m wheels. `TruckView` draws it in a holder scaled by
+`TRUCK_LOOK = 1.12`, a style choice: the original draws its trucks chunky so they read at the far camera. The look is
+a little wider than the 1.9 m collider, so trucks look a touch closer than they bump. The axle-centre origin is
+placed so the scaled tyres touch the ground where the raycast wheels do at rest (a bigger model wheel lifts the body
+rather than sinking). (Before OR-FB-002 was fixed the game measured the manifest's wheelbase and rescaled the GLB.)
 Each frame the manifest's `wheels` nodes (fl, fr, rl, rr) spin about `axle` from the raycast wheel's rotation, the
-`steer: true` ones turn about +y, and each moves by its suspension travel (divided by the holder's scale). The
+`steer: true` ones turn about +y, and each moves by its suspension travel (converted to the node's parent scale, which includes the export's fit). The
 pickup's bed liner is black, so from behind a truck's colour shows mainly on the cab, and the grey reads warm under
 the low sun. Without models the box truck is drawn.
 

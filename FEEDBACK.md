@@ -48,7 +48,11 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   (2026-10-21): still needed; the lifted pickup is 6.85 m long against our 4.5 m chassis.
 - Suggested change: a `fit` (or `scale`) spec field / `--fit-length` flag, applied before the manifest numbers are
   computed (so wheel radius, pivots and the collider box come out scaled too).
-- Status: fixed (generator 2ac99e4, wave-16: spec `fit: { length }`, CLI `--fit-length`). Game can drop the wheelbase rescale.
+- Status: verified (2026-10-21). The truck specs carry `"fit": { "length": 4.5 }`: the manifest comes back 4.5 m
+  long, 2.53 m wide, wheels at z ±1.42 (2.85 m wheelbase against the physics 2.9 m), radius 0.55 m,
+  `scale: { modelScale: 0.657, fit: { length: 4.5 } }`, no warnings. `truck-view.ts` no longer measures the
+  manifest; it draws the GLB at `TRUCK_LOOK` 1.12 as a style choice and converts suspension travel through the
+  wheel node's parent scale (the GLB root carries the fit). Load check: four trucks on four wheels, upright.
 
 ## OR-FB-003 · `ssg model apply --help` does not list `--json`
 - Severity: polish        Milestone: OR3

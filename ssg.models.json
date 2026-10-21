@@ -1,10 +1,10 @@
 {
   "defaults": { "texSize": 256, "texFormat": "webp" },
   "models": [
-    { "name": "truck_red", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#c62828", "origin": "axle-centre", "texSize": 1024 },
-    { "name": "truck_blue", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#1e5bc6", "origin": "axle-centre", "texSize": 1024 },
-    { "name": "truck_yellow", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#f2c618", "origin": "axle-centre", "texSize": 1024 },
-    { "name": "truck_grey", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#8a8f94", "origin": "axle-centre", "texSize": 1024 },
+    { "name": "truck_red", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#c62828", "origin": "axle-centre", "fit": { "length": 4.5 }, "texSize": 1024 },
+    { "name": "truck_blue", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#1e5bc6", "origin": "axle-centre", "fit": { "length": 4.5 }, "texSize": 1024 },
+    { "name": "truck_yellow", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#f2c618", "origin": "axle-centre", "fit": { "length": 4.5 }, "texSize": 1024 },
+    { "name": "truck_grey", "asset": "POLYGON_Palm_City/SM_Veh_Pickup_01", "attach": ["SM_Veh_Pickup_Lift_01"], "tint": "#8a8f94", "origin": "axle-centre", "fit": { "length": 4.5 }, "texSize": 1024 },
     { "name": "tire_pile", "asset": "POLYGON_Apocalypse/SM_Prop_Tire_Pile_01", "origin": "bottom-centre" },
     { "name": "tire_stack", "asset": "POLYGON_BattleRoyale/SM_Prop_TireStack_01", "origin": "bottom-centre" },
     { "name": "tire", "asset": "POLYGON_Apocalypse/SM_Prop_Tire_01", "origin": "bottom-centre" },
