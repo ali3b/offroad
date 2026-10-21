@@ -1,6 +1,7 @@
 // Pooled particles: one instanced quad mesh, camera-facing soft blobs. Simulated per physics step on the CPU
 // (cheap: a few hundred live), uploaded once per rendered frame. Kinds: dust, splash, mud, smoke.
 import * as THREE from 'three';
+import { qualityProfile } from '../engine/quality';
 
 export type ParticleKind = 'dust' | 'splash' | 'mud' | 'smoke';
 
@@ -63,7 +64,7 @@ export class Particles {
   private kinds = Object.keys(KINDS) as ParticleKind[];
   private seed = 1;
 
-  constructor(cap = 1200) {
+  constructor(cap = qualityProfile().particles) {
     this.cap = cap;
     this.px = new Float32Array(cap * 3);
     this.vel = new Float32Array(cap * 3);

@@ -12,11 +12,20 @@ export const CAMERA = {
   margin: 0.03,
 };
 
+/** The part of the screen the track may use, in NDC (-1..1; default: all of it below the HUD strip). */
+export interface FreeRect {
+  left: number;
+  right: number;
+  bottom: number;
+  top: number;
+}
+
 /**
- * Place `cam` so the box `bounds` (the track incl. its walls) fills the view below the HUD strip.
+ * Place `cam` so the box `bounds` (the track incl. its walls) fills the view below the HUD strip, inside `free`
+ * (the touch controls keep side columns or a bottom strip clear: game/race-scene.ts).
  * Binary-searches the distance along the view direction, then nudges the aim to centre the box.
  */
-export function fitFixedCamera(cam: THREE.PerspectiveCamera, bounds: THREE.Box3, aspect: number) {
+export function fitFixedCamera(cam: THREE.PerspectiveCamera, bounds: THREE.Box3, aspect: number, free?: FreeRect) {
   cam.fov = CAMERA.fov;
   cam.aspect = aspect;
   cam.near = 1;
@@ -29,8 +38,8 @@ export function fitFixedCamera(cam: THREE.PerspectiveCamera, bounds: THREE.Box3,
   for (const x of [bounds.min.x, bounds.max.x])
     for (const y of [bounds.min.y, bounds.max.y])
       for (const z of [bounds.min.z, bounds.max.z]) corners.push(new THREE.Vector3(x, y, z));
-  const top = 1 - CAMERA.hudTop;
-  const m = 1 - CAMERA.margin;
+  const f = free ?? { left: -1, right: 1, bottom: -1, top: 1 - CAMERA.hudTop };
+  const g = CAMERA.margin;
   const aim = centre.clone();
   const p = new THREE.Vector3();
   const place = (dist: number) => {
@@ -53,14 +62,14 @@ export function fitFixedCamera(cam: THREE.PerspectiveCamera, bounds: THREE.Box3,
     for (let k = 0; k < 40; k++) {
       dist = (lo + hi) / 2;
       const r = place(dist);
-      const fits = r.x0 >= -m && r.x1 <= m && r.y0 >= -m && r.y1 <= top - CAMERA.margin;
+      const fits = r.x0 >= f.left + g && r.x1 <= f.right - g && r.y0 >= f.bottom + g && r.y1 <= f.top - g;
       if (fits) hi = dist; else lo = dist;
     }
     dist = hi;
     // Centre the projected box in the free area by moving the aim in screen space (camera right/up on the ground).
     const r = place(dist);
-    const cx = (r.x0 + r.x1) / 2;
-    const cy = (r.y0 + r.y1) / 2 - (top - 1) / 2;
+    const cx = (r.x0 + r.x1) / 2 - (f.left + f.right) / 2;
+    const cy = (r.y0 + r.y1) / 2 - (f.bottom + f.top) / 2;
     const right = new THREE.Vector3(1, 0, 0);
     const upOnGround = new THREE.Vector3(0, 0, -1);
     const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
