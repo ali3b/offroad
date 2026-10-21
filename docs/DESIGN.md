@@ -24,6 +24,7 @@ src/
     line.ts          RacingLine: closed Catmull-Rom spline, arc-length samples, project / pointAt / curvature
     build.ts         grid → ground mesh, water, mud sheen, tyre walls + flags, start line, flagman tower + start
                      lamps, stadium dressing, props, colliders, surface queries
+    props-view.ts    swaps the placeholder props for instanced prop GLBs (PROP_MODELS table) + floodlights
   race/
     session.ts       the world + track + 1–4 trucks and views, effects, physics → game events
     race.ts          the race flow: Get Ready → lamps → race (gates, laps) → finish → results, records, pickups
@@ -31,7 +32,7 @@ src/
     roster.ts        the four trucks (colours, our driver names, skills), start nitros, prize money
     pickups.ts       money bags and nitro bottles on the racing line, escalating values
     events.ts        the game event bus (audio subscribes here)
-    models.ts        loads public/models/models.json (ssg model apply) when present
+    models.ts        public/models/models.json (ssg model apply) when present: modelIndex(), loadModel(name)
     truck-view.ts    the truck's look: the generator's GLB with manifest-driven wheels, or the box placeholder
   fx/
     particles.ts     pooled instanced billboards: dust, water splash, mud spray, nitro smoke
@@ -218,14 +219,60 @@ lap times / nitros / bags / progress, results, record, pickups), `autopilot(on)`
 - `scripts/feel-probe.mjs`: acceleration, braking, turn rate, jump and whoops numbers on the proving ground.
 
 ## Models (from the generator)
-`ssg.models.json` lists what the game wants (format: generator TODO "3D models + Off Road" contract): the lifted pickup
-`POLYGON_Palm_City/SM_Veh_Pickup_Lift_01` in 4 tints with `origin: axle-centre`, and props (Apocalypse tyre wall,
-tyre pile and barrels, War hay bale, Palm City traffic light for the start lamps, a barrier). `npm run assets` runs
-`ssg model apply` into `public/models/` (git-ignored), which writes the index `models.json` (shape: the generator's
-docs/MODELS.md). `race/models.ts` loads `truck_<colour>` from it when the file existed at dev-server/build start
-(`__HAS_MODELS__` in vite.config.ts, so a missing folder never 404s; restart the dev server after `npm run assets`).
-`TruckView` then draws the GLB for the truck's tint, scaled so its length matches the 4.5 m chassis (OR-FB-002), its
-axle-centre origin placed on the wheel centres at rest, and turns the manifest's `wheels` nodes (fl, fr, rl, rr):
-spin about `axle` from the raycast wheel's rotation, steer the `steer: true` ones about +y, and move each by its
-suspension travel. Without models it draws the box truck. (Tested with a synthetic models.json + GLBs; the real
-export is pending OR-FB-001.)
+`ssg.models.json` lists what the game wants (format: the generator's docs/MODELS.md). `npm run assets`
+(`scripts/build-assets.mjs`) runs `ssg model apply ssg.models.json --out public/models --json` into `public/models/`
+(git-ignored), which downloads only changed exports, removes undeclared ones and writes the index `models.json`.
+A cold build of all models takes ~8–11 s; a re-run with no changes downloads nothing. Restart the dev server
+afterwards: `__HAS_MODELS__` (vite.config.ts) is decided at server start, so a missing folder never 404s.
+
+| Name | Asset | Notes |
+|---|---|---|
+| `truck_red/blue/yellow/grey` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | tint #c62828 / #1e5bc6 / #f2c618 / #8a8f94, `origin: axle-centre`, 1024 px |
+| `tire_pile`, `tire_stack` | Apocalypse `SM_Prop_Tire_Pile_01`, BattleRoyale `SM_Prop_TireStack_01` | kind `tyre_pile` (variant by position) |
+| `barrel`, `barrel_coloured` | Apocalypse `SM_Prop_Barrel_01`, `SM_Prop_Barrel_Coloured_01` | kind `barrel` |
+| `hay_bale` | War `SM_Prop_Hay_Bale_01` | kind `hay_bale` |
+| `tire`, `cone`, `barrier` | Apocalypse `SM_Prop_Tire_01`, Palm City `SM_Prop_Cone_01`, `SM_Prop_Barrier_01` | kinds `tyre`, `cone`, `barrier`, ready for new tracks |
+| `floodlight` | Apocalypse `SM_Prop_Floodlights_01` (a light-mast trailer) | stadium dressing along the back wall |
+
+Props default to 256 px WebP textures (Synty atlases are flat colour swatches; 256 px looks the same at the race
+camera), trucks 1024 px WebP. Tried and dropped: billboards (their sign art does not come through, OR-FB-005), a
+stadium light mast (the light-pole pieces are modular parts, OR-FB-007), the Apocalypse tyre wall and a traffic
+light for the start tree (see below).
+
+**Trucks** (`race/truck-view.ts`). `loadTruckModels()` loads `truck_<colour>`; `TruckView` draws the GLB inside a
+holder scaled so the model's wheelbase (`wheels.fl.pos` → `wheels.rl.pos`, 4.33 m) matches the physics wheelbase
+(2.9 m) times `TRUCK_LOOK = 1.12` (OR-FB-002: no target size in the export). The truck is then ~5.1 m long,
+2.9 m wide over the tyres, with 0.63 m wheels, against the 4.5 × 1.9 m chassis and 0.5 m raycast wheels. That is
+deliberately chunky, like the original's trucks, so they read at the far camera; the look is a little wider than
+the collider, so trucks look a touch closer than they bump. The axle-centre origin is placed so the scaled tyres
+touch the ground where the raycast wheels do at rest (a bigger model wheel lifts the body rather than sinking).
+Each frame the manifest's `wheels` nodes (fl, fr, rl, rr) spin about `axle` from the raycast wheel's rotation, the
+`steer: true` ones turn about +y, and each moves by its suspension travel (divided by the holder's scale). The
+pickup's bed liner is black, so from behind a truck's colour shows mainly on the cab, and the grey reads warm under
+the low sun. Without models the box truck is drawn.
+
+**Props** (`track/props-view.ts`). `dressTrack(track)` runs from the Session constructor (fire and forget). It maps
+each track JSON `props` entry's `kind` to model names through `PROP_MODELS`, adds floodlight trailers along the back
+wall, builds one `InstancedMesh` per GLB mesh per model with every placement, and then hides the build.ts
+placeholders it replaced (kinds not in the table keep theirs). Props are drawn at `PROP_LOOK = 1.4` (floodlights
+1.2 × that) to match the 1 m wall tyres and the chunky trucks.
+
+**Tyre walls stay procedural.** The walls are a tyre per metre × 3 rows in one InstancedMesh (1 draw call) painted in the
+original's red and white bands. The Synty tyre wall is a 4.3 m run of bare black tyres, 0.7 m tall: it would need
+~100 instances per track, could not carry the bands and would not match the 1.3 m wall height. The lamp tree on the
+flagman tower also stays procedural: the race lights its three lamps, and a GLB traffic light has no lamp parts.
+
+**Cost** (Rattlesnake race, 4 trucks, SwiftShader at 1280×720; counted from the scene, main pass):
+
+| | draw calls | triangles | fps (SwiftShader) |
+|---|---|---|---|
+| placeholders (box trucks) | 112 | 131k | 5.1 |
+| generator models | 103 | 211k | 4.4 |
+
+Each truck is 16.7k triangles in 14 meshes (doors, glass, wheels, lift kit); props are one mesh each, one draw call
+per model however many are placed. SwiftShader is CPU-bound and runs ~5 fps either way (the checks use
+`advance()`); on a real GPU the scene is well inside budget.
+
+**Bundle**: `dist/` is 11 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined) and
+`dist/models/` 5.9 MB, of which the four trucks are 4 × 1.37 MB (0.66 MB gzipped each, the same geometry four
+times, OR-FB-006) and the nine props 0.7 MB. With the default PNG textures the models were 19.6 MB (OR-FB-004).

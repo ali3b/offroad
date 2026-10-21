@@ -11,7 +11,9 @@ source assets by hand.
 track with a ridge across every lane, a plank jump, whoops, mud and a puddle (also raceable in reverse). Three CPU
 drivers follow the racing line, bump you, fire nitros on the straights and pick up money bags and nitro bottles.
 A flagman and a lamp tree start the race; the podium pays $100K / $90K / $80K / $70K and keeps the track record.
-The trucks are placeholder boxes until the generator's 3D export lands; the season and shop come next (`TODO.md`).
+The trucks are lifted Synty pickups in four paints and the trackside props (tyre piles, barrels, hay bales,
+floodlight trailers) are Synty models too, all exported as GLBs by `npm run assets`; the season and shop come next
+(`TODO.md`).
 
 ![The results podium](docs/screenshots/race-results.png)
 
