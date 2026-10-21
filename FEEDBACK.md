@@ -230,7 +230,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: one throwaway single-`pose` spec per frame, previewed one by one (same export settings, different ids).
 - Suggested change: `--pose <name>` on preview for a `poses` export (or a contact sheet with one column per pose),
   and the export flags on preview too.
-- Status: open
+- Status: fixed (generator wave-16 68a3d3f)
 
 ## OR-FB-015 · `ssg assets --no-modular` lists the City billboard's sign panels
 - Severity: polish        Milestone: OR4
@@ -242,4 +242,4 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none needed (the docs say how to pair them).
 - Suggested change: flag sign panels as modular / attachment pieces, or have the search row for the frame say
   `attach: SM_Prop_Billboard_Sign_01..07`.
-- Status: open
+- Status: fixed (generator wave-16 68a3d3f)
