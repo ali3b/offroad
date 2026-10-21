@@ -53,7 +53,10 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [x] Game event bus (`src/race/events.ts`) for the audio lane
 - [x] Truck view loads `public/models/models.json` (GLB per tint, manifest wheels) with the box-truck fallback
       (tested with synthetic GLBs; real export pending OR-FB-001, scale OR-FB-002)
-- [ ] Release: screenshots in the README (done), a gameplay video (`record.mjs`), Pages deploy (orchestrator)
+- [x] Release: screenshots in the README, the trailer with sound (`scripts/trailer.mjs`: ~115 s trailer, 25 s short,
+      README GIF; test-results/video, never in master), README (features, controls, credits, licence) + MIT LICENSE,
+      a deploy-ready Pages build (`deploy-pages.mjs --no-push`: models, videos, gallery.html; load-checked from a sub-path)
+- [ ] Release: push the repo and gh-pages, Pages live (orchestrator: auth)
 
 ## OR3 · Season and shop
 - [x] All 8 tracks: Coyote Canyon, Bone Yard, Dry Creek Spiral, Twister Flats, Buzzard Bend, Thunder Ridge, Mesa Mayhem
@@ -65,7 +68,8 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       reversed variants from `TRACK_ORDER`, CPU trucks shop with their winnings + pace bonus, 3 credits, FREE RACE,
       CONTINUE? 9 s → cash $0, game over; `or.season` save + CONTINUE SEASON; per-track `or.records`;
       `scripts/season-check.mjs`, vitest unit tests)
-- [ ] Video + Pages deploy
+- [x] Video (the trailer covers the season: sign-up, a race, the podium, the Speed Shop, four more tracks)
+- [ ] Pages deploy (orchestrator: auth)
 
 ## OR4 · Presentation
 - [x] Title / attract mode with a demo race (our DOS-style logo, the demo race behind it, hints in the attract loop,
@@ -80,4 +84,5 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 
 ## OR5 · Polish and story
 - [ ] Performance passes (instancing, shadow budget), gamepad polish
-- [ ] A gallery page and the chapter-per-milestone documentary treatment like the other games
+- [x] A gallery page (`gallery.html` in the Pages build: the trailer, screens and tracks in the DOS style)
+- [ ] The chapter-per-milestone documentary treatment like the other games
