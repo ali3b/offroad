@@ -322,7 +322,10 @@ export class PodiumView {
   }
 }
 
-/** Confetti: small paper squares falling and fluttering over the winner, recycled at the top (one draw call). */
+/**
+ * Confetti: small paper squares falling and fluttering over the winner, recycled at the top (one draw call). Pro
+ * Racer's confetti is a particle effect, which the generator cannot export (OR-FB-020).
+ */
 class Confetti {
   readonly mesh: THREE.InstancedMesh;
   private p: { pos: THREE.Vector3; vel: THREE.Vector3; spin: THREE.Vector3; rot: THREE.Euler; phase: number }[] = [];

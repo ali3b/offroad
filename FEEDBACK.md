@@ -159,8 +159,13 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   (`ssg.models.json`, `race/characters.ts` CLIPS). No driver is drawn in the cabs.
 - Suggested change: an animation pack (or Mixamo uploads) with clap, cheer/fist-pump, dejected, a seated idle and a
   seated driving pose; and synonyms in the clip search (cheer → wave/victory, sad → slumped/disappointed).
-- Status: open (re-checked 2026-10-21: `ssg animations cheer|clap|celebrate|fist` still find nothing; the crowd's
-  cheer poses are frames of `POLY_IDL_Wave_Double_Loop`)
+- Status: verified (2026-10-21, with ANIMATION_Emotes_And_Taunts and the Mixamo uploads in `_Uploads`). Podium: winner
+  `POLY_EMOT_Celebrate_BeatChest` then `Driver_Trophy` (both arms overhead with the cup), 2nd
+  `POLY_EMOT_Celebrate_Clapping_Polite`, 3rd `POLY_EMOT_Happy_FistPump`, 4th `Driver_Defeated`. Crowd: seated
+  `Crowd_Sit_Idle` / `Crowd_Sit_Cheer`, standing up with `POLY_EMOT_Happy_ArmsRaised` / `Happy_FistPump`; the flagman
+  plays `Flagman_Wave`. All qualified by gender where Synty has two, no manifest warnings. Not used: `Driver_Drive`
+  (no drivers are drawn in the cabs: at the race camera a cab is a few pixels). The search synonyms part (cheer →
+  wave) is moot now that the clips exist.
 
 ## OR-FB-010 · A clip name is ambiguous: Masculine and Feminine (and Polygon/Sidekick) variants share it
 - Severity: polish        Milestone: OR4
@@ -217,7 +222,8 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   the flatness does not show.
 - Suggested change: a pack gap note (a sports/stadium pack with trophies); `ssg assets` could tag icon-pack props
   as `icon` so a search can tell them from full props.
-- Status: open
+- Status: verified (2026-10-21, POLYGON_Pro_Racer installed). `SM_Prop_Trophy_01` is a full two-handled cup (0.53 ×
+  0.84 × 0.27 m); the winner lifts it at 0.95× (`ui/podium-view.ts`, model `trophy`), and the icon is gone.
 
 ## OR-FB-014 · Previewing a `poses` export draws every pose on top of each other
 - Severity: polish        Milestone: OR4
@@ -243,3 +249,122 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Suggested change: flag sign panels as modular / attachment pieces, or have the search row for the frame say
   `attach: SM_Prop_Billboard_Sign_01..07`.
 - Status: fixed (generator wave-16 68a3d3f)
+
+## OR-FB-016 · Pro Racer characters export with the vehicle atlas: white skin, white hair
+- Severity: blocks (Pro Racer characters)        Milestone: OR5
+- Tried: `ssg model preview POLYGON_Pro_Racer/SM_Chr_Crowd_01 --poses …` and the same for `SM_Chr_Crowd_02..04`,
+  `SM_Chr_Driver_Male_01/02`, `SM_Chr_Driver_Female_01/02`, `SM_Chr_PitCrew_01/02`, `SM_Chr_Announcer_01/02`; then
+  `ssg model export SM_Chr_Crowd_01 --attach SM_Chr_Attach_Hair_08 --pose …` and read the GLB.
+- Wanted: the racing-suit drivers for the podium (four suit colours with `variants`) and the Pro Racer crowd.
+- Got: every one has a white face and hands, white hair and pale blue facial hair; the clothes happen to land on
+  plausible swatches. The GLB has one material, `PolygonProRacer_VehicleTexture_01.png`, with the vehicle atlas
+  embedded: the characters are bound to the pack's vehicle texture instead of its character texture, so skin and hair
+  sample white swatches. No warning.
+- Workaround: none; the podium keeps the City / BattleRoyale / Apocalypse drivers and the crowd uses City Characters
+  (`ssg.models.json`). `--variants` on `SM_Chr_Driver_Male_01` does recolour the suit's magenta panels (the paint
+  detection works), so they would make good drivers once the texture is right.
+- Suggested change: bind Pro Racer `SM_Chr_*` to the character texture its MaterialList names (re-ingest), and warn
+  when a character's texture is a vehicle/environment atlas.
+- Status: open
+
+## OR-FB-017 · Pro Racer helmets attach at the character's feet
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg model preview POLYGON_Pro_Racer/SM_Chr_Driver_Male_01 --attach SM_Chr_Attach_Helmet_01..04 --pose
+  POLY_EMOT_Happy_ArmsRaised@Masculine:0.6` (a helmet would also have hidden OR-FB-016's white head).
+- Wanted: the helmet on the head (bound to the head bone like the hair attachments).
+- Got: the helmet stands on the ground between the feet in every pose; the hair attachments (`SM_Chr_Attach_Hair_08`)
+  do sit on the head. `ssg model info` lists the helmets as `attachment` assets but not in the drivers'
+  `attachAvailable`, so they are separate static models placed at their authored origin (0, 0, 0).
+- Workaround: no helmets.
+- Suggested change: attach a static head-wear model to the head bone (by its kind or name), or take a `socket` in the
+  attach entry: `attach: [{ asset: "SM_Chr_Attach_Helmet_01", socket: "head" }]`.
+- Status: open
+
+## OR-FB-018 · Cut-out foliage exports opaque: cactus, succulent and tumbleweed cards show black boxes
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg model preview POLYGON_NatureBiomes_AridDesert/SM_Env_Cactus_01..03`, `SM_Env_Succulent_04/06`,
+  `SM_Prop_Tumbleweed_01`, `SM_Env_Bush_Bramble_01`, `SM_Env_GroundCover_02`; exported `SM_Env_Cactus_03` and read
+  the GLB.
+- Wanted: the plants cut out of their textures.
+- Got: black (or dark) rectangles around every leaf card. The textures do carry alpha (webp RGBA, alpha 0..255), but
+  the materials have no `alphaMode` (glTF default OPAQUE); `doubleSided` is set.
+- Workaround: `track/stadium-view.ts` sets `alphaTest = 0.5` on the plant and tumbleweed materials (tagged
+  `// OR-FB-018`).
+- Suggested change: write `alphaMode: "MASK"` (with `alphaCutoff`) for materials whose Synty shader is a cut-out
+  (foliage / `_Leaf` / alpha-clip) or whose texture has a used alpha channel; previews would then show it too.
+- Status: open
+
+## OR-FB-019 · FX meshes lose their FX material: the flame is grey, the crowd cards are white
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg model preview POLYGON_Pro_Racer/SM_Flame_Mesh_01`, `SM_FX_Crowd_Group_01`, `SM_FX_Crowd_Single_01`.
+- Wanted: the flame-booster mesh for the nitro burst, and the crowd cards as cheap fill for the stands.
+- Got: the flame is a plain grey cone; the crowd groups and singles are white quads (no texture). Their Synty FX
+  shaders (additive / alpha-blended, with their own textures) are not carried over.
+- Workaround: `race/truck-view.ts` takes only the flame's geometry and draws it with additive orange and white-hot
+  materials of its own (tagged `// OR-FB-019`); the crowd cards are not used (the stands get baked-pose fans).
+- Suggested change: map FX materials to an emissive or additive-looking glTF material with their texture (and alpha
+  BLEND), and flag `kind: fx` exports with a warning when the look depends on a shader.
+- Status: open
+
+## OR-FB-020 · No confetti (or any particle effect) to export
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg assets confetti`, `ssg assets --pack POLYGON_Pro_Racer --kind fx` (both modular and whole).
+- Wanted: Pro Racer's "confetti" and "bottle spray" FX on the podium (the store page lists them).
+- Got: no confetti, spray, dust or smoke assets: the pack's FX are Unity particle systems, which the library does not
+  ingest; only FX meshes (flame, checkpoint, light rays, crowd cards) are there.
+- Workaround: `ui/podium-view.ts` draws its own confetti (260 instanced paper squares, tagged `// OR-FB-020`).
+- Suggested change: a pack-gap note in `ssg assets` for particle-only FX, or an export of a particle system's
+  settings (texture, colours, rate, lifetime) for games to rebuild.
+- Status: open
+
+## OR-FB-021 · Previews showed Mixamo one-shot clips with frozen arms
+- Severity: polish        Milestone: OR5
+- Tried: `ssg model preview POLYGON_City_Characters/SK_Character_Jock --clip Crowd_Sit_Clap|Driver_Trophy|Driver_Clap
+  --frames 8`.
+- Wanted: the arm motion across the clip.
+- Got: the arms stayed put in every frame (clap hands still, the trophy lift never lifting), while `Crowd_Sit_Cheer`,
+  `Driver_Victory` and `Driver_Defeated` moved. The orchestrator traced it to the preview renderer (a LoopOnce +
+  clampWhenFinished action pauses past its end and `setTime` never un-pauses it). In the game, `Driver_Trophy`
+  plays correctly through `mixer.update` (podium frame captures at 1, 3.5, 5 and 7 s).
+- Workaround: none needed in the game. While the preview was being fixed, `ssg model preview` failed for a while with
+  "the model preview page did not load from http://127.0.0.1:5181/model-preview.html".
+- Suggested change: re-test the clip strip with a one-shot clip in the preview's own checks.
+- Status: fixed (generator, reported by the orchestrator 2026-10-21)
+
+## OR-FB-022 · A traffic light has no lamp parts to light
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg model info POLYGON_Pro_Racer/SM_Prop_Trafficlight_01` (`parts: []`), `ssg parts … ` ("no animatable
+  parts"), and the exported GLB (one mesh, one atlas material).
+- Wanted: to light the three lamps from the race's countdown (red, red, red, green).
+- Got: the lamps are painted swatches on the atlas inside one mesh, so there is nothing to switch or make emissive.
+- Workaround: `track/stadium-view.ts` puts three emissive-looking discs (MeshBasicMaterial) over the lamp faces and
+  lights those (tagged `// OR-FB-022`).
+- Suggested change: split lamp/glass sub-meshes by material or swatch into named parts (role `light`, with a
+  `lights: [{ node, colour }]` block in the manifest), or an option to put given swatches on their own emissive
+  material.
+- Status: open
+
+## OR-FB-023 · Small export oddities in Pro Racer: Seating_05's texture, the pit box's "wheels"
+- Severity: polish        Milestone: OR5
+- Tried: `ssg model preview POLYGON_Pro_Racer/SM_Bld_Grandstand_Seating_05`; `ssg model apply` with
+  `SM_Prop_Pit_Box_02`.
+- Got: Seating_05 shows magenta/green noise across its seats (Seating_01..03 look right, so it looks like the wrong
+  texture or UV set); the pit box (a tool trolley) gets `warnings: ["2 wheels could not be mapped to front/rear
+  left/right"]`, since it has two castors and is not a vehicle.
+- Workaround: Seating_01 on the grandstands; the pit box warning is harmless.
+- Suggested change: check Seating_05's material slots; skip the wheels block (and its warning) for props that are
+  not vehicles.
+- Status: open
+
+## OR-FB-024 · Stand models carry no seat points; the game finds the seats by ray casting
+- Severity: workaround        Milestone: OR5
+- Tried: `ssg model info` on `SM_Bld_Grandstand_01` (+ `SM_Bld_Grandstand_Seating_01`), `SM_Bld_Grandstand_VIP_01`
+  and `SM_Prop_Bleachers_01`; the manifests (parts, sockets) after the export.
+- Wanted: where to seat a crowd: seat rows (positions, facing, pitch) in the manifest, like `sockets`.
+- Got: no parts or sockets for seats.
+- Workaround: `track/stadium-view.ts findSeats()` casts rays down through each stand model to find the treads and seat
+  pans, then a seat every 0.62 m where a ray finds one (aisles have none): 160 seats on a grandstand, 32 on the VIP
+  box, 64 on the bleachers (tagged `OR-FB-024`).
+- Suggested change: a `seats: [{ pos, yaw }]` block for seating props (benches, bleachers, grandstands, sofas), found
+  the same way at export.
+- Status: open

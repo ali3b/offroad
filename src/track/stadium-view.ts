@@ -50,7 +50,8 @@ const seatCache = new Map<string, Promise<THREE.Vector3[]>>();
 /**
  * Find the seat rows of a stand model by casting rays down through it: along z the profile has flats (treads, seat
  * pans, bench tops); a flat 0.3–0.6 m above the one in front of it is a seat with the feet on the lower flat. Seats
- * along a row are every `pitch` metres where the ray finds that seat height (aisles have none).
+ * along a row are every `pitch` metres where the ray finds that seat height (aisles have none). The manifests carry no
+ * seat points for stands (OR-FB-024).
  */
 export function findSeats(name: string, facing: 1 | -1 = 1, pitch = 0.62): Promise<THREE.Vector3[]> {
   const key = `${name}:${facing}`;
@@ -303,7 +304,10 @@ export async function dressStadium(track: Track): Promise<StadiumView | null> {
   return { seats: visible, update: (time) => weeds(time) };
 }
 
-/** Three lamp discs over the traffic light's lamp faces (top to bottom), lit by the race through track.lights. */
+/**
+ * Three lamp discs over the traffic light's lamp faces (top to bottom), lit by the race through track.lights. The
+ * light is one mesh on the pack atlas, with no lamp parts or emissive slots to switch (OR-FB-022).
+ */
 function lampDiscs(group: THREE.Group, x: number, y: number, z: number, scale: number) {
   const geo = new THREE.CircleGeometry(0.1 * scale, 16);
   return [0.97, 0.66, 0.35].map((h) => {
