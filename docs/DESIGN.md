@@ -45,7 +45,7 @@ The original shows a whole track on one screen from a high 3/4 view with almost 
 perspective camera with a narrow vertical FOV (18°) pitched 58° below the horizon, looking north (-z), placed by
 `fitFixedCamera()`: a binary search on the distance until the track's wall bounds fit below the HUD strip
 (`CAMERA.hudTop`), then the aim is nudged so the box is centred. It re-fits on resize. The camera never moves
-during a race. ORIGINAL.md should confirm pitch and framing against footage.
+during a race. research/ORIGINAL.md (local) should confirm pitch and framing against footage.
 
 ### Track data → world
 A track is one JSON (`src/track/types.ts`): size, cell size (0.5 m), base noise, an infield polygon (raised grass),
@@ -77,7 +77,7 @@ above the highest, with restitution 0.45 for the original's bouncy wall hits. Zo
 
 ### HUD
 A DOM strip over the canvas with one panel per truck colour (red P1, blue, yellow, grey), each with lap, cash and the
-nitro count, matching the original's per-truck scoreboard. Exact layout to be checked against ORIGINAL.md.
+nitro count, matching the original's per-truck scoreboard. Exact layout to be checked against research/ORIGINAL.md (local).
 
 ### Test handle `window.__or`
 `ready`, `scene`, `simTime`, `truck()` (pos, speed, heading, up, contacts, suspension, airborne, airTime, nitros,

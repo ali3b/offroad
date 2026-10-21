@@ -6,7 +6,7 @@ written, and a commit. Gaps in the generator go to `FEEDBACK.md` (OR-FB-NNN); th
 generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 
 ## OR0 · Research, packs, skeleton
-- [ ] `docs/ORIGINAL.md` from a study of DOS longplay footage of the 1989 original:
+- [x] `research/ORIGINAL.md` (local only, git-ignored: it names the original) from a study of DOS longplay footage of the 1989 original:
   - [ ] the 8 tracks' layouts as top-down sketches (jumps, water, mud, hills, start line, racing direction)
   - [ ] the screen flow (title → select → race → results → shop) and the HUD layout
   - [ ] laps per race, the prize money table, upgrade prices and levels (Acceleration, Tires, Shocks, Top Speed at
@@ -33,12 +33,12 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       jump); `scripts/feel-probe.mjs` (0→top, braking, turn rate, air time)
 - [ ] The player truck exported through `ssg model apply` (lifted pickup, 4 tints, origin axle-centre); wheels
       driven from the manifest `wheels` block (blocked on the generator's M1/M2, OR-FB-001)
-- [ ] Feel tuned against the reference footage (ORIGINAL.md): top speed vs. track size, turn rate, jump hang time,
+- [ ] Feel tuned against the reference footage (research/ORIGINAL.md): top speed vs. track size, turn rate, jump hang time,
       bounce over whoops, wall bumps
 - [ ] Gate decision recorded in `docs/DESIGN.md`: keep the Rapier raycast vehicle, or switch to the custom 2.5D arcade model
 
 ## OR2 · Track 1 + a full race → first public release
-- [ ] Track 1 from ORIGINAL.md: heightmap + track JSON (spline/racing line, walls, ramps, water/mud zones, checkpoints,
+- [ ] Track 1 from research/ORIGINAL.md: heightmap + track JSON (spline/racing line, walls, ramps, water/mud zones, checkpoints,
       props placed from the generator's models)
 - [ ] 3 CPU trucks following racing lines with rubber-banding; truck-to-truck bumping
 - [ ] Start lights (traffic-light stand-in), 4 laps, lap counter, positions

@@ -43,3 +43,6 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
 - Look at the screenshots. Tick the milestone in `TODO.md`, update `FEEDBACK.md`, and commit in this repo.
 - Release: `node scripts/record.mjs http://localhost:5199 <name>` → `test-results/video/<name>.mp4`;
   `node scripts/deploy-pages.mjs` → gh-pages.
+
+## Reference material
+`research/` (git-ignored) holds `ORIGINAL.md`, the study of the 1989 original: rules, economy, track sketches, screens and HUD. It names the original, so it never goes into git or onto Pages. Use our own names in code and public text.
