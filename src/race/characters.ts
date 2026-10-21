@@ -1,12 +1,15 @@
-// Synty characters from the generator (ssg.models.json `driver_<colour>`, `fan_*`): skinned GLBs with their clips
-// merged in. `Character` is one animated copy (its own skeleton and AnimationMixer); `bakePose` freezes a clip at a
-// time into a plain static mesh, so a crowd can draw dozens of copies as one InstancedMesh per pose.
+// Synty characters from the generator (ssg.models.json `driver_<colour>`, `fan_*`, `crowd_*`). `Character` is one
+// animated copy of a skinned export (its own skeleton and AnimationMixer). Crowds use `crowd_*`: exports with baked
+// static poses (`poses`: idle and two cheer frames), plain meshes ready for an InstancedMesh.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, modelIndex, type LoadedModel } from './models';
 import type { Colour } from './roster';
 
-/** The clips the game merges into its character exports (ssg.models.json), by what they are for. */
+/**
+ * The clips the game merges into its character exports (ssg.models.json), by what they are for. The specs qualify
+ * them by gender (`POLY_IDL_Base@Feminine`) and the GLB names a clip as asked, so lookups match the base name.
+ */
 export const CLIPS = {
   idle: 'POLY_IDL_Base',
   victory: 'MartialArts_Victory',
@@ -17,6 +20,10 @@ export const CLIPS = {
 } as const;
 
 export const FANS = ['fan_a', 'fan_b', 'fan_c'] as const;
+/** The same three fans as baked static poses (`poses` exports), in FANS order. */
+export const CROWD = ['crowd_a', 'crowd_b', 'crowd_c'] as const;
+/** The pose nodes of a crowd export: standing idle, then two frames of the two-arm wave for the cheer. */
+export const CROWD_POSES = ['idle', 'cheer_a', 'cheer_b'] as const;
 export const driverModel = (c: Colour) => `driver_${c}`;
 
 /** One driver or fan with its own skeleton, playing clips by name with a short cross-fade. */
@@ -39,7 +46,7 @@ export class Character {
   }
 
   has(clip: string) {
-    return !!THREE.AnimationClip.findByName(this.model.clips, clip);
+    return !!findClip(this.model.clips, clip);
   }
 
   /**
@@ -47,7 +54,7 @@ export class Character {
    * Unknown clips are ignored, so a missing export clip leaves the character in its current pose.
    */
   play(name: string, o: { once?: boolean; fade?: number; then?: string; offset?: number } = {}) {
-    const clip = THREE.AnimationClip.findByName(this.model.clips, name);
+    const clip = findClip(this.model.clips, name);
     if (!clip || this.current === name) return;
     const next = this.mixer.clipAction(clip);
     next.reset();
@@ -81,6 +88,11 @@ export class Character {
   }
 }
 
+/** A clip by its base name: exact, or qualified (`name@Feminine`, `name@#664`). */
+export function findClip(clips: THREE.AnimationClip[], name: string): THREE.AnimationClip | undefined {
+  return clips.find((c) => c.name === name) ?? clips.find((c) => c.name.startsWith(`${name}@`));
+}
+
 /** Load character models by name (cached by loadModel); missing ones are left out. */
 export async function loadCharacters(names: readonly string[]): Promise<Record<string, LoadedModel>> {
   if (!(await modelIndex())) return {};
@@ -92,63 +104,33 @@ export async function loadCharacters(names: readonly string[]): Promise<Record<s
   return out;
 }
 
-export interface BakedPose {
+/** One baked pose of a `poses` export: its static mesh parts (usually one, a primitive per material). */
+export interface PosePart {
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
+  /** The part's transform within the export (root fit, pose node, meshopt's dequantising child). */
+  matrix: THREE.Matrix4;
 }
 
-const _v = new THREE.Vector3();
-const _n = new THREE.Vector3();
-
 /**
- * OR-FB-012: the generator exports only skinned characters, so the game freezes poses itself.
- * Freeze `clip` at `time` (s) into static geometry in the model's own frame (feet at y = 0, facing +Z): the CPU
- * skins every vertex once. A static pose draws as a plain (instanced) mesh, with no skeleton per copy.
+ * The baked poses of a `poses` export (ssg.models.json `crowd_*`), by pose name in `names` order; null when the
+ * model is missing or lacks one of the poses.
  */
-export function bakePose(model: LoadedModel, clip: string, time: number): BakedPose[] {
-  const root = cloneSkinned(model.scene);
-  const mixer = new THREE.AnimationMixer(root);
-  const c = THREE.AnimationClip.findByName(model.clips, clip);
-  if (c) {
-    mixer.clipAction(c).play();
-    mixer.setTime(Math.min(time, c.duration));
+export async function loadPoses(name: string, names: readonly string[]): Promise<PosePart[][] | null> {
+  const model = await loadModel(name);
+  if (!model) return null;
+  model.scene.updateMatrixWorld(true);
+  const out: PosePart[][] = [];
+  for (const n of names) {
+    const node = model.scene.getObjectByName(n);
+    if (!node) return null;
+    const parts: PosePart[] = [];
+    node.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      parts.push({ geometry: m.geometry, material: Array.isArray(m.material) ? m.material[0] : m.material, matrix: m.matrixWorld.clone() });
+    });
+    out.push(parts);
   }
-  root.updateMatrixWorld(true);
-  const out: BakedPose[] = [];
-  root.traverse((o) => {
-    const m = o as THREE.SkinnedMesh;
-    if (!m.isMesh) return;
-    const src = m.geometry;
-    const pos = src.getAttribute('position');
-    const nor = src.getAttribute('normal');
-    const p = new Float32Array(pos.count * 3);
-    const n = new Float32Array(pos.count * 3);
-    const normalMat = new THREE.Matrix3().getNormalMatrix(m.matrixWorld);
-    if (m.isSkinnedMesh) m.skeleton.update();
-    for (let i = 0; i < pos.count; i++) {
-      _v.fromBufferAttribute(pos, i);
-      if (m.isSkinnedMesh) {
-        // The normal follows the skinning: skin the point one normal-length away and take the difference.
-        if (nor) _n.fromBufferAttribute(nor, i).multiplyScalar(0.01).add(_v);
-        m.applyBoneTransform(i, _v);
-        if (nor) m.applyBoneTransform(i, _n);
-        if (nor) _n.sub(_v);
-      } else if (nor) _n.fromBufferAttribute(nor, i);
-      _v.applyMatrix4(m.matrixWorld);
-      _v.toArray(p, i * 3);
-      if (nor) _n.applyMatrix3(normalMat).normalize().toArray(n, i * 3);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-    if (nor) g.setAttribute('normal', new THREE.BufferAttribute(n, 3));
-    else g.computeVertexNormals();
-    const uv = src.getAttribute('uv');
-    if (uv) g.setAttribute('uv', uv);
-    if (src.index) g.setIndex(src.index);
-    for (const grp of src.groups) g.addGroup(grp.start, grp.count, grp.materialIndex);
-    g.computeBoundingSphere();
-    out.push({ geometry: g, material: Array.isArray(m.material) ? m.material[0] : m.material });
-  });
-  mixer.stopAllAction();
   return out;
 }

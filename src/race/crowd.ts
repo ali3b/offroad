@@ -1,14 +1,13 @@
-// The grandstand crowd: the generator's Synty fans (ssg.models.json `fan_a/b/c`) in place of build.ts's coloured
-// boxes. A few fans are real skinned characters with their own mixer (idle, then a wave when the crowd cheers);
-// everyone else is a pose baked once into static geometry (race/characters.ts bakePose, OR-FB-012) and drawn as one
+// The grandstand crowd: the generator's Synty fans in place of build.ts's coloured boxes. A few fans are real skinned
+// characters (ssg.models.json `fan_a/b/c`) with their own mixer (idle, then a wave when the crowd cheers); everyone
+// else is a static pose the generator baked (`crowd_a/b/c`, `poses`: idle, cheer_a, cheer_b) drawn as one
 // InstancedMesh per fan model per pose, so ~40 fans cost a handful of draw calls and no skeletons.
 // The crowd cheers on the event bus: a truck finishing, or a big jump landing.
 // Without models nothing changes and the boxes stay.
 import * as THREE from 'three';
-import { bakePose, Character, CLIPS, FANS, loadCharacters, type BakedPose } from './characters';
+import { Character, CLIPS, CROWD, CROWD_POSES, FANS, loadCharacters, loadPoses, type PosePart } from './characters';
 import { events } from './events';
 import type { Track } from '../track/build';
-import type { LoadedModel } from './models';
 
 /** Skinned, animated fans (the rest are baked poses). */
 const ANIMATED = 6;
@@ -16,13 +15,6 @@ const ANIMATED = 6;
 const FAN_LOOK = 1.05;
 /** A landing after this much air time (s) is a big jump. */
 const BIG_JUMP = 0.5;
-/** Poses baked per fan model: standing idle, then two frames of the two-arm wave for the cheer. */
-const POSES = [
-  { clip: CLIPS.idle, t: 0.6 },
-  { clip: CLIPS.cheer, t: 0.12 },
-  { clip: CLIPS.cheer, t: 0.5 },
-] as const;
-
 interface Fan {
   /** Fan model index (FANS). */
   type: number;
@@ -32,19 +24,8 @@ interface Fan {
   character?: Character;
 }
 
-/** Baked poses per fan model, shared by every race (the pages's GPU buffers live as long as the page). */
-const baked = new Map<string, BakedPose[][]>();
-
-function bakedFor(name: string, model: LoadedModel) {
-  let b = baked.get(name);
-  if (!b) {
-    b = POSES.map((p) => bakePose(model, p.clip, p.t));
-    baked.set(name, b);
-  }
-  return b;
-}
-
 const _m = new THREE.Matrix4();
+const _pm = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
@@ -55,6 +36,8 @@ export class Crowd {
   private fans: Fan[] = [];
   /** [fan model][pose] → instanced mesh(es). */
   private meshes: THREE.InstancedMesh[][][] = [];
+  /** [fan model][pose] → the export's mesh parts (their matrices carry the GLB's own node transforms). */
+  private parts: PosePart[][][] = [];
   private cheerUntil = 0;
   private time = 0;
   private lastTime = -1;
@@ -87,9 +70,10 @@ export class Crowd {
     const stand = this.track.group.getObjectByName('grandstand');
     const boxes = stand?.getObjectByName('crowd') as THREE.InstancedMesh | undefined;
     if (!stand || !boxes) return false;
-    const models = await loadCharacters(FANS);
-    const names = FANS.filter((n) => models[n]);
-    if (!names.length || this.disposed) return false;
+    const [models, ...posed] = await Promise.all([loadCharacters(FANS), ...CROWD.map((n) => loadPoses(n, CROWD_POSES))]);
+    // A fan type needs its baked poses; its skinned model is optional (the animated fans use it when there).
+    const types = CROWD.map((_, i) => i).filter((i) => posed[i]);
+    if (!types.length || this.disposed) return false;
 
     // Stand where every other box sat (the boxes are seated people 0.5 m apart; standing fans need more room).
     const spots: THREE.Vector3[] = [];
@@ -107,9 +91,10 @@ export class Crowd {
     const animatedAt = new Set<number>();
     for (let k = 0; k < Math.min(ANIMATED, spots.length); k++) animatedAt.add(Math.floor(((k + 0.5) / ANIMATED) * Math.min(spots.length, 22)));
     spots.forEach((pos, i) => {
-      const fan: Fan = { type: Math.floor(hash(i) * names.length), pos, yaw: (hash(i + 50) - 0.5) * 0.5, phase: hash(i + 99) };
-      if (animatedAt.has(i)) {
-        const ch = new Character(models[names[fan.type]]);
+      const fan: Fan = { type: Math.floor(hash(i) * types.length), pos, yaw: (hash(i + 50) - 0.5) * 0.5, phase: hash(i + 99) };
+      const skinned = models[FANS[types[fan.type]]];
+      if (animatedAt.has(i) && skinned) {
+        const ch = new Character(skinned);
         ch.root.position.copy(pos);
         ch.root.rotation.y = fan.yaw;
         ch.root.scale.setScalar(FAN_LOOK);
@@ -120,9 +105,10 @@ export class Crowd {
       this.fans.push(fan);
     });
 
-    this.meshes = names.map((name, type) => {
+    this.parts = types.map((t) => posed[t]!);
+    this.meshes = this.parts.map((poses, type) => {
       const count = this.fans.filter((f) => f.type === type && !f.character).length;
-      return bakedFor(name, models[name]).map((pose) =>
+      return poses.map((pose) =>
         pose.map((part) => {
           const im = new THREE.InstancedMesh(part.geometry, part.material, Math.max(1, count));
           im.castShadow = true;
@@ -155,7 +141,7 @@ export class Crowd {
       _s.setScalar(FAN_LOOK);
       _m.compose(_p, _q, _s);
       const slot = counts[f.type][pose]++;
-      for (const im of this.meshes[f.type][pose]) im.setMatrixAt(slot, _m);
+      this.meshes[f.type][pose].forEach((im, k) => im.setMatrixAt(slot, _pm.multiplyMatrices(_m, this.parts[f.type][pose][k].matrix)));
     }
     this.meshes.forEach((poses, type) =>
       poses.forEach((parts, pose) => {
@@ -188,7 +174,7 @@ export class Crowd {
 
   private wasCheering = false;
 
-  /** Unsubscribe and detach (the baked geometry and the fan models' materials are shared with later races). */
+  /** Unsubscribe and detach (the pose geometry and the fan models' materials are shared with later races). */
   dispose() {
     this.disposed = true;
     for (const f of this.off) f();
