@@ -28,7 +28,8 @@ export function hintsHtml() {
     <div class="item"><b>ACCELERATION</b> - more punch off the line.</div>
     <div class="item"><b>TOP SPEED</b> - a higher top end.</div>
     <p style="margin-top:12px">Out of credits? Continue, but your cash<br>goes back to $0. Upgrades stay on the truck.</p>
-    <div class="ctl">DRIVE: ARROWS / WASD OR PAD &middot; NITRO: SPACE / SHIFT OR (B) &middot; R: BACK TO THE GRID &middot; M: MUTE</div></div>`;
+    <div class="ctl">1 PLAYER: ARROWS / WASD OR PAD &middot; NITRO: SPACE / SHIFT OR (B) &middot; M: MUTE<br>
+    2-3 PLAYERS: WASD + L.SHIFT &middot; ARROWS + R.CTRL &middot; PADS (A GAS, B NITRO)</div></div>`;
 }
 
 export class HintsScreen implements Screen {

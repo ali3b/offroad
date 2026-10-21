@@ -70,6 +70,13 @@ export class Session {
     }
   }
 
+  /** A human's truck: the season's players (entry.human), else slot 0 (standalone scenes). */
+  isHuman(slot: number) {
+    const r = this.racers[slot];
+    if (!r) return false;
+    return r.entry.human ? true : slot === 0 && !this.racers.some((x) => x.entry.human);
+  }
+
   /** The player's truck (slot 0). */
   get truck() {
     return this.racers[0].truck;
@@ -223,7 +230,8 @@ export class Session {
   render() {
     this.racers.forEach((r, i) => {
       r.view.sync(r.truck);
-      events.emit('engine', { truck: i, rpm: r.truck.rpm(), throttle: r.truck.input.throttle, speed: r.truck.state().speed, nitro: r.truck.nitroT > 0, player: i === 0 });
+      // Every human truck is a player (local multiplayer: their engines at player level); standalone: slot 0.
+      events.emit('engine', { truck: i, rpm: r.truck.rpm(), throttle: r.truck.input.throttle, speed: r.truck.state().speed, nitro: r.truck.nitroT > 0, player: this.isHuman(i) });
     });
     this.particles.sync();
     this.skids.sync(this.time);

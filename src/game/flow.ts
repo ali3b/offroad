@@ -4,11 +4,13 @@
 //                                                                                    └→ continue? ─┬→ shop
 //                                                                                                  └→ game over → title
 // The title's "Continue season" picks a saved season (localStorage or.season) up at the shop.
+// Local multiplayer: 1..3 humans sign up; each drives with their own keys / pad (engine/input.ts readPlayers), banks
+// their own money, shops in turn and gets their own CONTINUE? countdown; a human who gives up becomes a CPU truck.
 // ?scene=race / ?scene=test are the standalone scenes (no season); ?scene=shop opens the shop straight away (checks).
 // One Loop (fixed 60 Hz physics) drives whatever RaceScene is current; menus read their input once per frame.
 import * as THREE from 'three';
 import { Loop } from '../engine/loop';
-import { clearPressed, confirmPressed, drainMenu, readInput, resetRequested, wasPressed, type MenuEvent } from '../engine/input';
+import { clearPressed, confirmPressed, drainMenu, padsFor, readInput, readPlayers, resetRequested, wasPressed, type Control, type KeyScheme, type MenuEvent } from '../engine/input';
 import { NO_INPUT, TUNING, type TruckInput } from '../physics/vehicle';
 import { events, type ScreenName } from '../race/events';
 import type { TruckModels } from '../race/models';
@@ -18,20 +20,20 @@ import { RAPIER } from '../physics/world';
 import { DebugOverlay } from '../ui/debug';
 import { RaceScene, type RaceSceneOpts } from './race-scene';
 import { buy, takeContinue, type ShopItem } from './economy';
-import { clearSeason, entriesFor, loadSeason, modsBySlot, newSeason, nitrosBySlot, raceFor, saveSeason, settleRace, trackOrder, type NextRace, type SeasonState } from './season';
+import { clearSeason, dropToCpu, entriesFor, loadSeason, modsBySlot, newSeason, nitrosBySlot, outPlayers, raceFor, saveSeason, settleRace, trackOrder, type NextRace, type SeasonState } from './season';
 import type { Colour } from '../race/roster';
 import type { Screen } from '../ui/screens/common';
 import { TitleScreen } from '../ui/screens/title';
 import { HintsScreen } from '../ui/screens/hints';
-import { GetReadyScreen, RegisterScreen } from '../ui/screens/register';
+import { GetReadyScreen, RegisterScreen, type SignUp } from '../ui/screens/register';
 import { ShopScreen } from '../ui/screens/shop';
-import { ContinueScreen, GameOverScreen } from '../ui/screens/continue';
+import { ContinueScreen, GameOverScreen, type ContinueChoice } from '../ui/screens/continue';
 import { money } from './economy';
 import { ResultsScreen } from '../ui/results';
 import { podiumView } from '../ui/podium-view';
 import { cycleDosLook, dosLabel, getSettings, setSettings } from '../engine/retro';
 import { toast } from '../ui/toast';
-import { PRIZES, ROSTER } from '../race/roster';
+import { HEX, PRIZES, ROSTER } from '../race/roster';
 
 export type FlowState = ScreenName | 'standalone' | 'loading';
 
@@ -49,7 +51,12 @@ export class Flow {
   next: NextRace | null = null;
   /** Standalone ?scene=race: prize money won this page session. */
   private standaloneCash = 0;
-  private override: TruckInput | null = null;
+  /** Tests: a fixed input per human (window.__or.setInput). */
+  private override: (TruckInput | null)[] = [];
+  /** Each human's controls (index = player): their keyboard layout and the pad they joined with. */
+  controls: Control[] = [{ keys: 'solo', pad: null }];
+  /** Pads that joined at the sign-up, by colour (this page session; a reload lends pads in join order). */
+  private joinedPads = new Map<Colour, number>();
   private buildToken = 0;
   private demoIndex = Math.floor(Math.random() * 64);
   private demoRebuild = false;
@@ -126,7 +133,7 @@ export class Flow {
     this.setRace(null);
     const s = loadSeason();
     const p = s?.players[0];
-    const save = s && p ? `${p.initials} &middot; RACE ${s.race + 1} &middot; ${money(p.cash)}` : null;
+    const save = s && p ? (s.players.length > 1 ? `${s.players.map((x) => x.initials).join(' + ')} &middot; RACE ${s.race + 1}` : `${p.initials} &middot; RACE ${s.race + 1} &middot; ${money(p.cash)}`) : null;
     this.setScreen('title', new TitleScreen({ save, onNew: () => this.toHints(), onContinue: () => this.continueSeason() }));
     await this.demo();
   }
@@ -149,28 +156,45 @@ export class Flow {
   }
 
   toRegister() {
-    const last = loadSeason()?.players[0];
+    const last = loadSeason()?.players;
     this.setScreen(
       'register',
       new RegisterScreen({
-        initials: last?.initials,
-        colour: last?.colour,
-        onDone: (p) => this.startSeason([p]),
+        last: last?.map((p) => ({ initials: p.initials, colour: p.colour })),
+        onDone: (players) => this.startSeason(players),
         onBack: () => this.toHints(),
       }),
     );
   }
 
-  startSeason(players: { initials: string; colour: Colour }[]) {
-    this.season = newSeason(players);
+  /** Sign-ups → a new season. Alone = the whole keyboard and any pad; 2–3 humans split the keyboard (input.ts). */
+  startSeason(players: (SignUp | { initials: string; colour: Colour })[]) {
+    const n = players.length;
+    const kbFree: KeyScheme[] = ['wasd', 'arrows'].filter((k) => !players.some((p) => 'src' in p && p.src === k)) as KeyScheme[];
+    this.joinedPads.clear();
+    const withKeys = players.map((p) => {
+      const src = 'src' in p ? p.src : 'kb';
+      if (src.startsWith('pad')) this.joinedPads.set(p.colour, Number(src.slice(3)));
+      const keys: KeyScheme | null = n === 1 ? 'solo' : src === 'wasd' || src === 'arrows' ? src : src === 'kb' ? (kbFree.shift() ?? null) : null;
+      return { initials: p.initials, colour: p.colour, keys };
+    });
+    this.season = newSeason(withKeys);
     saveSeason(this.season);
+    this.syncControls();
     this.toGetReady();
+  }
+
+  /** Controls follow the season's players (after a sign-up, a reload or a human dropping out). */
+  private syncControls() {
+    const ps = this.season?.players ?? [];
+    this.controls = ps.length ? ps.map((p) => ({ keys: p.keys, pad: ps.length > 1 ? (this.joinedPads.get(p.colour) ?? null) : null })) : [{ keys: 'solo', pad: null }];
   }
 
   continueSeason() {
     this.season = loadSeason();
     if (!this.season) return this.toTitle();
-    if (this.season.players[0].credits <= 0) this.toContinue();
+    this.syncControls();
+    if (outPlayers(this.season).length) this.toContinue();
     else this.toShop();
   }
 
@@ -210,6 +234,8 @@ export class Flow {
     saveSeason(s);
     const o = s.last!.outcomes[0];
     const me = s.players[0];
+    const noteOf = (x: typeof o) => (x.free ? { text: 'FREE RACE!', kind: 'free' as const } : x.creditLost ? { text: x.out ? 'NO CREDITS LEFT' : 'CREDIT LOST', kind: 'lost' as const } : undefined);
+    const anyOut = outPlayers(s).length > 0;
     r.results.show({
       track: r.opts.name,
       results,
@@ -218,8 +244,10 @@ export class Flow {
       newRecord: race.newRecord,
       cash: me.cash,
       credits: me.credits,
-      note: o.free ? { text: 'FREE RACE!', kind: 'free' } : o.creditLost ? { text: o.out ? 'NO CREDITS LEFT' : 'CREDIT LOST', kind: 'lost' } : undefined,
-      prompt: o.out ? 'PRESS ENTER OR (A)' : 'PRESS ENTER OR (A) FOR THE SPEED SHOP',
+      note: noteOf(o),
+      prompt: anyOut ? 'PRESS START OR (A)' : 'PRESS START OR (A) FOR THE SPEED SHOP',
+      // Slot = player index (the line-up puts the humans first).
+      humans: s.players.map((p, i) => ({ slot: i, nick: p.initials, hex: HEX[p.colour], cash: p.cash, credits: p.credits, note: noteOf(s.last!.outcomes[i]) })),
     });
     this.setScreen('results', null);
   }
@@ -232,18 +260,18 @@ export class Flow {
     this.setScreen(
       'shop',
       new ShopScreen({
-        player: () => this.season!.players[0],
+        players: () => this.season!.players,
         cpus: () => this.season!.cpus,
         next: this.next,
         raceNo: s.race + 1,
-        onBuy: (item) => this.buy(item),
+        onBuy: (item, player) => this.buy(item, player),
         onStart: () => this.toGetReady(),
         onQuit: () => this.toTitle(),
       }),
     );
   }
 
-  /** Buy for player 1; false when it can't be bought. */
+  /** Buy for a player (default player 1); false when it can't be bought. */
   buy(item: ShopItem, player = 0) {
     const s = this.season!;
     const r = buy(s.players[player], item);
@@ -253,40 +281,65 @@ export class Flow {
     return true;
   }
 
+  /** CONTINUE? for every human out of credits, each with their own countdown; the rest wait. */
   toContinue() {
     this.setRace(null);
     const s = this.season!;
+    const initials = s.players.map((p) => p.initials).join(' + ');
     this.setScreen(
       'continue',
       new ContinueScreen({
-        player: s.players[0],
-        onContinue: () => {
-          s.players[0] = takeContinue(s.players[0]);
-          saveSeason(s);
+        players: s.players,
+        out: outPlayers(s),
+        onDone: (choices: Record<number, ContinueChoice>) => {
+          let next = s;
+          for (const [i, c] of Object.entries(choices)) if (c === 'continue') next.players[+i] = takeContinue(next.players[+i]);
+          // Those who gave up become CPU drivers (highest index first so the others keep their places).
+          for (const i of Object.keys(choices).map(Number).sort((a, b) => b - a)) if (choices[i] === 'out') next = dropToCpu(next, i);
+          if (!next.players.length) return this.toGameOver(initials);
+          this.season = next;
+          saveSeason(next);
+          this.syncControls();
           this.toShop();
         },
-        onGiveUp: () => this.toGameOver(),
       }),
     );
   }
 
-  toGameOver() {
+  toGameOver(initials?: string) {
     const s = this.season;
     clearSeason();
     this.season = null;
-    this.setScreen('gameover', new GameOverScreen({ races: s?.race ?? 0, initials: s?.players[0].initials ?? '', onDone: () => this.toTitle() }));
+    this.setScreen('gameover', new GameOverScreen({ races: s?.race ?? 0, initials: initials ?? s?.players.map((p) => p.initials).join(' + ') ?? '', onDone: () => this.toTitle() }));
   }
 
   /** ?scene=shop (checks): the saved season's shop, or a fresh one with some cash (&cash=, default 250000; &race=). */
   openShop() {
     let s = loadSeason();
     if (!s) {
-      s = newSeason([{ initials: 'ACE', colour: (this.params.get('colour') as Colour) ?? 'red' }]);
-      s.players[0].cash = Number(this.params.get('cash') ?? 250_000);
+      // &players=2|3: a local multiplayer season (player 1 in &colour, the others in the next free colours).
+      const n = Math.max(1, Math.min(3, Number(this.params.get('players') ?? 1)));
+      const first = (this.params.get('colour') as Colour) ?? 'red';
+      const colours = [first, ...(['red', 'yellow', 'blue'] as Colour[]).filter((c) => c !== first)].slice(0, n);
+      s = newSeason(colours.map((colour, i) => ({ initials: ['ACE', 'JET', 'MAX'][i], colour })));
+      s.players.forEach((p, i) => (p.cash = Number(this.params.get('cash') ?? 250_000) - i * 60_000));
       s.race = Number(this.params.get('race') ?? 1);
     }
     this.season = s;
+    this.syncControls();
     this.toShop();
+  }
+
+  /** ?scene=register (screenshots): the sign-up, with &join=wasd,arrows,pad0 already joined (initials entered). */
+  openRegister() {
+    this.toRegister();
+    const joins = (this.params.get('join') ?? '').split(',').filter(Boolean) as MenuEvent['src'][];
+    const scr = this.screen as RegisterScreen;
+    joins.forEach((src, k) => {
+      scr.input({ key: 'confirm', src });
+      // The first one confirms the initials and readies up; the next one stays on the initials.
+      if (k === 0) for (let j = 0; j < 4; j++) scr.input({ key: 'confirm', src });
+    });
   }
 
   /** ?scene=podium (screenshots): the results screen with made-up results, no race behind it. */
@@ -312,7 +365,7 @@ export class Flow {
     const st = this.state;
     const driving = st === 'race' || st === 'standalone';
     if (driving && st === 'standalone' && resetRequested()) r.restart();
-    r.step(dt, this.override ?? (driving ? readInput() : NO_INPUT));
+    r.step(dt, driving ? this.humanInputs(st === 'standalone') : NO_INPUT);
     if (r.takeResults()) {
       if (r.mode === 'season' && st === 'race') this.seasonResults(r);
       else if (r.mode === 'race') {
@@ -349,16 +402,38 @@ export class Flow {
     }
   }
 
+  /** Each human's input this step (the test override wins per player). */
+  private humanInputs(standalone: boolean): TruckInput[] {
+    const live = standalone ? [readInput()] : readPlayers(this.controls);
+    const n = Math.max(live.length, this.override.length);
+    return Array.from({ length: n }, (_, i) => this.override[i] ?? live[i] ?? NO_INPUT);
+  }
+
+  /**
+   * Which human a menu press belongs to: their keyboard side or their pad (2+ humans). undefined = anyone (one human,
+   * Esc / Backspace, tests); -1 = nobody (e.g. the arrows side when no human drives with the arrows).
+   */
+  ownerOf(e: MenuEvent): number | undefined {
+    if (e.player !== undefined) return e.player;
+    const s = this.season;
+    if (!s || s.players.length <= 1 || !e.src || e.src === 'kb') return undefined;
+    if (e.src === 'wasd' || e.src === 'arrows') {
+      const i = s.players.findIndex((p) => p.keys === e.src);
+      return i >= 0 ? i : -1;
+    }
+    const i = padsFor(this.controls).indexOf(Number(e.src.slice(3)));
+    return i >= 0 ? i : -1;
+  }
+
   /** One menu press (keyboard/pad, or a test). */
   press(e: MenuEvent) {
     if (this.state === 'results') {
       if (e.key !== 'confirm' || !this.season) return;
-      const o = this.season?.last?.outcomes[0];
-      if (o?.out) this.toContinue();
+      if (outPlayers(this.season).length) this.toContinue();
       else this.toShop();
       return;
     }
-    this.screen?.input(e);
+    this.screen?.input({ ...e, player: this.state === 'register' ? e.player : this.ownerOf(e) });
   }
 
   // ---- the test handle -----------------------------------------------------------------------------------------
@@ -402,7 +477,13 @@ export class Flow {
       camera3d: () => scene().camera,
       /** The main renderer's last frame: draw calls (incl. the shadow pass) and triangles. */
       renderInfo: () => ({ calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }),
-      setInput: (i: Partial<TruckInput> | null) => (this.override = i ? { ...NO_INPUT, ...i } : null),
+      /** Tests: hold a fixed input for a human (default player 1); null gives the keys / pad back. */
+      setInput: (i: Partial<TruckInput> | null, player = 0) => (this.override[player] = i ? { ...NO_INPUT, ...i } : null),
+      /** The humans' controls: keyboard layout, joined pad, the pad lent right now. */
+      controls: () => {
+        const pads = padsFor(this.controls);
+        return this.controls.map((c, i) => ({ ...c, padNow: pads[i] }));
+      },
       reset: () => scene().session.reset(),
       place: (x: number, z: number, heading = 0, lift = 1.4) => {
         const s = scene().session;
@@ -421,20 +502,26 @@ export class Flow {
         state: () => {
           const s = this.season;
           const p = s?.players[0];
+          const scr = this.screen;
           return {
             screen: this.state,
             race: s?.race ?? null,
             next: this.next && { id: this.next.id, reversed: this.next.reversed, name: this.next.name, cycle: this.next.slot.cycle },
             track: this.race ? { id: this.race.session.track.data.id, mode: this.race.mode } : null,
             player: p ? { initials: p.initials, colour: p.colour, cash: p.cash, credits: p.credits, nitros: p.nitros, levels: { ...p.levels } } : null,
+            players: (s?.players ?? []).map((x) => ({ initials: x.initials, colour: x.colour, keys: x.keys, cash: x.cash, credits: x.credits, nitros: x.nitros, levels: { ...x.levels } })),
+            cpus: (s?.cpus ?? []).map((c) => ({ colour: c.colour, cash: c.cash, levels: { ...c.levels } })),
             last: s?.last ?? null,
-            shopCursor: this.screen instanceof ShopScreen ? this.screen.item : null,
+            shopCursor: scr instanceof ShopScreen ? scr.item : null,
+            shopTurn: scr instanceof ShopScreen ? scr.turn : null,
+            signup: scr instanceof RegisterScreen ? scr.cards.map((c) => ({ src: c.src, colour: c.colour, initials: c.letters.join(''), step: c.step })) : null,
+            continue: scr instanceof ContinueScreen ? { left: { ...scr.left }, choice: { ...scr.choice } } : null,
           };
         },
         season: () => (this.season ? structuredClone(this.season) : null),
         /** Tests: change the season (e.g. credits) and save it. */
-        patchPlayer: (patch: Record<string, unknown>) => {
-          Object.assign(this.season!.players[0], patch);
+        patchPlayer: (patch: Record<string, unknown>, player = 0) => {
+          Object.assign(this.season!.players[player], patch);
           saveSeason(this.season!);
         },
         /** A menu press: 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back', or { letter: 'Q' }. */

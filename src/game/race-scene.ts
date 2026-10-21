@@ -98,9 +98,11 @@ export class RaceScene {
     return pos ? Math.max(-1, Math.min(1, _p.set(pos.x, pos.y, pos.z).project(this.camera).x)) : 0;
   }
 
-  step(dt: number, input: TruckInput) {
-    if (this.race) this.race.step(dt, input);
-    else this.session.step(dt, [input]);
+  /** One physics step; `input` is player 1's, or one per human (local multiplayer). */
+  step(dt: number, input: TruckInput | TruckInput[]) {
+    const inputs = Array.isArray(input) ? input : [input];
+    if (this.race) this.race.step(dt, inputs);
+    else this.session.step(dt, inputs);
   }
 
   /** The race just reached its results (call once per step; true once). */
@@ -132,12 +134,15 @@ export class RaceScene {
         }),
       );
       const p = race.phase;
-      const me = race.states[0];
+      // The latest human to finish (with 2+ humans the banner names them).
+      const done = race.humans.filter((h) => race.states[h].finished).sort((a, b) => race.states[b].finishTime! - race.states[a].finishTime!);
+      const me = race.states[done[0] ?? race.humans[0]];
+      const who = race.humans.length > 1 && done.length ? `${s.racers[done[0]].entry.nick} ` : '';
       if (this.mode === 'demo') this.hud.setBanner(null);
       else if (p === 'ready') this.hud.setBanner('GET READY!');
       else if (p === 'countdown') this.hud.setBanner(String(3 - Math.min(2, Math.floor(race.phaseT))));
       else if (p === 'racing' && race.clock < 1) this.hud.setBanner('GO!', true);
-      else if (p === 'racing' && me.finished && race.clock - (me.finishTime ?? 0) < 3) this.hud.setBanner(`${ORDINAL[me.place - 1]} PLACE!`);
+      else if (p === 'racing' && me.finished && race.clock - (me.finishTime ?? 0) < 3) this.hud.setBanner(`${who}${ORDINAL[me.place - 1]} PLACE!`);
       else this.hud.setBanner(null);
     } else this.hud.update(0, [{ lap: 1, nitros: s.truck.nitros }]);
     this.hud.tick(frameDt, this.camera);

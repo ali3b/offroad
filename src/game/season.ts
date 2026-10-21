@@ -1,6 +1,6 @@
-// The season: who races (1 human now, up to 3 by design; CPU trucks fill the other colours, grey is always the
-// CPU boss), their cash, credits, upgrades and nitros, which race is next, and the save in localStorage `or.season`.
-// Pure apart from the storage helpers at the bottom.
+// The season: who races (1..3 humans, local multiplayer; CPU trucks fill the other colours, grey is always the CPU
+// boss), each human's own cash, credits, upgrades and nitros, which race is next, and the save in localStorage
+// `or.season` (v2; a v1 one-player save is migrated on load). Pure apart from the storage helpers at the bottom.
 import * as registry from '../track/tracks';
 import type { TrackData } from '../track/types';
 import { COLOURS, CPU_DRIVERS, HEX, START_NITROS, type Colour, type Entry } from '../race/roster';
@@ -8,6 +8,7 @@ import type { RacerResult } from '../race/race';
 import type { TruckMods } from '../physics/vehicle';
 import { cpuPaceBonus, cpuShop, creditOutcome, modsFor, START_CREDITS, STOCK_LEVELS, type CreditOutcome, type Garage } from './economy';
 import { raceAt, type RotationSlot } from './rotation';
+import type { KeyScheme } from '../engine/input';
 
 export const MAX_PLAYERS = 3;
 
@@ -15,35 +16,74 @@ export interface PlayerState extends Garage {
   initials: string;
   colour: Colour;
   credits: number;
+  /** Keyboard layout ('solo' when racing alone; null = pad only). Pads are lent per page session, not saved. */
+  keys: KeyScheme | null;
 }
 
 export interface CpuState extends Garage {
   colour: Colour;
 }
 
+export const SEASON_VERSION = 2;
+
 export interface SeasonState {
-  v: 1;
+  v: typeof SEASON_VERSION;
   /** 0-based index of the next race in the rotation. */
   race: number;
   players: PlayerState[];
   cpus: CpuState[];
-  /** The last race's outcome per player (the shop shows FREE RACE / credit lost). */
+  /** The last race's outcome per player index (results: FREE RACE / credit lost); places per slot. */
   last?: { track: string; outcomes: CreditOutcome[]; places: number[] };
 }
 
 /** One truck of the next race: slot order = players first (slot 0 = player 1 on pole), then the CPU trucks. */
 export type LineupSlot = { kind: 'player'; index: number; colour: Colour } | { kind: 'cpu'; index: number; colour: Colour };
 
-export function newSeason(players: { initials: string; colour: Colour }[]): SeasonState {
+/** Default keyboard layouts by the number of humans: alone = both key sets; then WASD, arrows, pad only. */
+export function defaultKeys(n: number, i: number): KeyScheme | null {
+  if (n === 1) return 'solo';
+  return (['wasd', 'arrows', null] as const)[i] ?? null;
+}
+
+export function newSeason(players: { initials: string; colour: Colour; keys?: KeyScheme | null }[]): SeasonState {
   if (players.length < 1 || players.length > MAX_PLAYERS) throw new Error(`1..${MAX_PLAYERS} players`);
   const taken = new Set(players.map((p) => p.colour));
   if (taken.size !== players.length || taken.has('grey')) throw new Error('players need distinct colours (not grey)');
   return {
-    v: 1,
+    v: SEASON_VERSION,
     race: 0,
-    players: players.map((p) => ({ initials: p.initials, colour: p.colour, cash: 0, credits: START_CREDITS, levels: { ...STOCK_LEVELS }, nitros: START_NITROS.player })),
+    players: players.map((p, i) => ({
+      initials: p.initials,
+      colour: p.colour,
+      cash: 0,
+      credits: START_CREDITS,
+      levels: { ...STOCK_LEVELS },
+      nitros: START_NITROS.player,
+      keys: p.keys !== undefined ? p.keys : defaultKeys(players.length, i),
+    })),
     cpus: COLOURS.filter((c) => !taken.has(c)).map((colour) => ({ colour, cash: 0, levels: { ...STOCK_LEVELS }, nitros: START_NITROS.cpu })),
   };
+}
+
+/** Humans with no credits left after the last race (CONTINUE? each, with their own countdown). */
+export function outPlayers(s: SeasonState): number[] {
+  return s.players.flatMap((p, i) => (p.credits <= 0 ? [i] : []));
+}
+
+/**
+ * A human gives up (no continue): their colour becomes a CPU driver (our CPU name for that colour) who keeps the
+ * truck's upgrades and cash. A lone human left gets the whole keyboard back ('solo'). The season may end up with no
+ * humans: the caller ends it (game over).
+ */
+export function dropToCpu(s: SeasonState, player: number): SeasonState {
+  const next: SeasonState = structuredClone(s);
+  const [p] = next.players.splice(player, 1);
+  if (!p) return next;
+  next.cpus.push({ colour: p.colour, cash: p.cash, levels: { ...p.levels }, nitros: START_NITROS.cpu });
+  next.cpus.sort((a, b) => COLOURS.indexOf(a.colour) - COLOURS.indexOf(b.colour));
+  if (next.players.length === 1) next.players[0].keys = 'solo';
+  if (next.last) next.last = { ...next.last, outcomes: next.last.outcomes.filter((_, i) => i !== player) };
+  return next;
 }
 
 export function lineup(s: SeasonState): LineupSlot[] {
@@ -152,11 +192,24 @@ export function raceFor(race: number, order = trackOrder()): NextRace {
 
 export const SEASON_KEY = 'or.season';
 
+/**
+ * A saved season in the current shape, or null if it isn't one. v1 (OR3: one player, no keyboard layout) → v2: the
+ * players get their keyboard layout (alone: 'solo'; else WASD, arrows, pad only by index).
+ */
+export function migrateSeason(raw: unknown): SeasonState | null {
+  const s = raw as Record<string, unknown> | null;
+  if (!s || typeof s !== 'object' || !Array.isArray(s.players) || !s.players.length || !Array.isArray(s.cpus) || typeof s.race !== 'number') return null;
+  if (s.v === 1) {
+    const players = (s.players as Omit<PlayerState, 'keys'>[]).map((p, i, all) => ({ ...p, keys: defaultKeys(all.length, i) }));
+    return { ...(s as unknown as SeasonState), v: SEASON_VERSION, players };
+  }
+  if (s.v === SEASON_VERSION) return s as unknown as SeasonState;
+  return null;
+}
+
 export function loadSeason(): SeasonState | null {
   try {
-    const s = JSON.parse(localStorage.getItem(SEASON_KEY) ?? 'null');
-    if (!s || s.v !== 1 || !Array.isArray(s.players) || !s.players.length || !Array.isArray(s.cpus) || typeof s.race !== 'number') return null;
-    return s as SeasonState;
+    return migrateSeason(JSON.parse(localStorage.getItem(SEASON_KEY) ?? 'null'));
   } catch {
     return null;
   }

@@ -12,8 +12,8 @@ src/
     flow.ts          the screen flow (title → hints → sign-up → get ready → race → results → shop / continue),
                      the one Loop, window.__or handles that follow the current scene
     race-scene.ts    one track on screen: its own three.js scene + Rapier world, Session, Race, HUD, results, camera
-    season.ts        season state (players, CPU trucks, cash, credits, levels, nitros), line-up, rotation lookup,
-                     settleRace(), the or.season save
+    season.ts        season state (1–3 players with their keys, CPU trucks, cash, credits, levels, nitros), line-up,
+                     rotation lookup, settleRace(), dropToCpu(), the or.season save (v2; migrateSeason() from v1)
     economy.ts       prices, levels, upgrade → TruckMods, buy(), CPU shopping, credits / FREE RACE / continue
     rotation.ts      raceAt(n, race): the cycle rotation (pure)
     *.test.ts        vitest unit tests (npm test)
@@ -21,7 +21,8 @@ src/
     renderer.ts      WebGLRenderer (sRGB, PCF soft shadows), scene, hemisphere + low sun
     camera.ts        the fixed whole-track camera (CAMERA: pitch, fov, margins) and fitFixedCamera()
     loop.ts          fixed 60 Hz physics step with an accumulator (max 6 steps/frame), render per rAF, advance()
-    input.ts         keyboard + Gamepad API → TruckInput; confirm (Enter / pad A) for menus
+    input.ts         keyboard + Gamepad API → TruckInput: readInput() (one player), readPlayers(controls) (the keyboard
+                     split + pads per player, KEY_SCHEMES), menu presses with their source (drainMenu)
     retro.ts         the DOS look (F2): low-res render target, palette + dither, scanlines; or.settings
   physics/
     world.ts         RAPIER.init(), World (gravity -14), PHYSICS_DT, collision GROUPs
@@ -67,7 +68,9 @@ src/
 `main.ts` reads `?scene=` (unknown scenes throw so the load check fails loudly) and hands over to `game/flow.ts`:
 - `title` (default when there's no `?scene`): the title / attract screen and the season (see "Season and flow").
 - `shop`: the Speed Shop straight away, on the saved season or a fresh one (`&cash=` default 250000, `&race=`
-  default 1, `&colour=`); for checks.
+  default 1, `&colour=`, `&players=1..3`); for checks.
+- `register`: the driver sign-up; `&join=wasd,arrows,pad0` has those players joined already (the first one READY),
+  for screenshots (`load-check.mjs … register join=wasd,arrows`).
 - `test`: the player's truck alone on `?track=` (default `test`, the proving ground). R resets.
 - `race`: a 4-truck race on `?track=` (default `rattlesnake`). `&reverse` drives the reversed variant, `&cpus=0..3`
   races fewer CPU trucks (tuning), `&autopilot` lets the AI drive the player's truck (tests, demos).
@@ -229,7 +232,9 @@ from Rapier contacts. Revisit only if OR3's upgrades (tires, shocks) can't be ex
   can count. The first crossing of gate 0 (just after the grid) starts lap 1; lap 1's time includes the short run
   from the grid, like the race clock. 4 laps.
 - **Finish**: places in crossing order; finished trucks drive a gentle cool-down. The race ends when all four are
-  in, or 25 s after the player finishes (stragglers ranked by progress), or after 300 s.
+  in, or 25 s after the last human finishes (stragglers ranked by progress), or after 300 s.
+- **Humans**: `Race.humans` are the slots with `entry.human` (season: the players, always the first slots) or slot 0
+  in a standalone race; `Race.step(dt, inputs)` takes one input per human. `autopilot` puts every human on the AI.
 - **Results**: the podium screen: the player's finish time and the track record, then a plate per truck with
   place, prize (100K / 90K / 80K / 70K) plus money bags, driver, time, average and best lap. In a standalone race
   Enter / pad A restarts with Get Ready!; in the season it goes on to the shop. The record (fastest finish by anyone) is kept in localStorage `or.records`
@@ -246,7 +251,7 @@ from Rapier contacts. Revisit only if OR3's upgrades (tires, shocks) can't be ex
 - Speed plan: the slowest of `sqrt(vc² + 2·8·d)` over the next 10 + 1.6·v metres, with the corner speed
   `vc = sqrt(cornerGrip / κ)` from the line's curvature, capped at `pace × topSpeed`.
 - Nitro on straights (low curvature over the next 28 m) with a per-driver chance and a cool-down.
-- Rubber band (mild): pace × (1 − 0.0015 × metres ahead of the player), clamped to 0.94..1.05.
+- Rubber band (mild): pace × (1 − 0.0015 × metres ahead of the leading human), clamped to 0.94..1.05.
 - Unstuck: throttle with no speed for 0.9 s, or nose-in to a wall (a ray from the nose) → reverse for ~1 s with the
   steering flipped so the nose swings towards the line. No progress for 6 s, or > 14 m off the line → put back on
   the line (also when a truck is outside the outer wall).
@@ -278,13 +283,14 @@ GO!, "1ST PLACE!") and floating pickup texts in the same pixel font (Press Start
 ### Test handle `window.__or`
 `ready`, `scene`, `simTime`, `truck()` / `trucks()` (pos, speed, heading, up, contacts, suspension, airborne,
 airTime, nitros, inWater, surface, slip, resets), `raceState()` (phase, clock, per-truck lap / next gate / place /
-lap times / nitros / bags / progress, results, record, pickups), `autopilot(on)`, `restart()`,
-`resultsVisible()`, `setInput(partial | null)`, `reset()`, `place(x, z, heading)`, `advance(s)`, `debug(on)`,
+lap times / nitros / bags / progress / human, results, record, pickups), `autopilot(on)`, `restart()`,
+`resultsVisible()`, `setInput(partial | null, player = 0)`, `controls()` (each human's keys, joined pad, lent pad), `reset()`, `place(x, z, heading)`, `advance(s)`, `debug(on)`,
 `groundCheck()`, `heightAt(x, z)`, `line()`, `mods()` (each truck's upgrade multipliers), plus `tuning`, `camera`,
 `loop`, `session`, `race`, `events`, `models`, `THREE` and `RAPIER` for live tuning. `session` / `race` follow the
-current scene (null on a menu screen). `flow`: `state()` (screen, race index, next race, player cash / credits /
-levels / nitros, last outcome, shop cursor), `press(key | {letter})`, `tick(s)` (menu clocks), `forceFinish(order)`,
-`patchPlayer(patch)`, `season()`, `order()`, `raceFor(i)`, `text()`.
+current scene (null on a menu screen). `flow`: `state()` (screen, race index, next race, player 1 and `players[]` cash / credits /
+levels / nitros / keys, `cpus[]`, last outcome, shop cursor and turn, the sign-up cards, the continue countdowns),
+`press(key | {key, letter, src, player})`, `tick(s)` (menu clocks), `forceFinish(order)`, `patchPlayer(patch, player)`,
+`season()`, `order()`, `raceFor(i)`, `text()`.
 
 ### Checks
 - `scripts/load-check.mjs <url> test|race`: boots the scene, no errors, ground ↔ grid, trucks on four wheels.
@@ -298,8 +304,17 @@ levels / nitros, last outcome, shop cursor), `press(key | {letter})`, `tick(s)` 
   between them (buy tires and a nitro, check the next race's grip multiplier), a reload → CONTINUE SEASON with the
   same cash, then forced finishes: out of credits → CONTINUE? → continue (cash $0, 3 credits, upgrades kept),
   FREE RACE!, out of credits → countdown out → GAME OVER → title with the save gone. `test-results/season-*.png`.
+- `scripts/twoplayer-check.mjs <url>`: local multiplayer. A v1 save migrates (CONTINUE SEASON → shop, v2); real key
+  presses at the sign-up (W joins player 1 on the WASD side, Up joins player 2 on the arrows side and types BOB, both
+  READY, Enter starts); in the race W / D drive only player 1's truck, Up / Left only player 2's, `setInput(…, 1)` only
+  player 2's; engine events flag both humans; autopilot to the results (each human banks their own prize + bags,
+  credits by the CPU rule); the shop in turn with real keys (the other player's keys do nothing), separate cash and
+  upgrades and per-human truck mods next race; forced finishes: one human loses a credit, a human ahead costs none;
+  player 2 out → CONTINUE? for them alone → gives up → blue races as a CPU truck with their upgrades, player 1 gets the
+  whole keyboard; player 1 out → countdown → GAME OVER. `test-results/twoplayer-*.png`.
 - `npm test`: vitest unit tests of the rotation (the 8-track table, track 8 at race 35, fewer tracks), the shop,
-  credits, continue, CPU shopping and `settleRace`.
+  credits, continue, CPU shopping and `settleRace`; `multiplayer.test.ts`: 2–3 humans (line-up, keyboard split,
+  separate banking, credits per human, upgrades per human), `dropToCpu`, the v1 → v2 save migration, pad lending.
 - `scripts/load-check.mjs <url> title|shop`: the title (ground check on the demo race) and the shop (menus only).
 - `scripts/lap-probe.mjs <url> [track] [tuning JSON]`: lap times and speeds alone, for tuning.
 - `scripts/feel-probe.mjs`: acceleration, braking, turn rate, jump and whoops numbers on the proving ground.
@@ -319,28 +334,40 @@ title (attract) → hints → sign-up → get ready → race → results ┬→ 
   the title song. Left idle for 16 s the screen cycles to the racing hints for 10 s (an arcade attract loop).
 - **Racing hints**: the rules in our own words (laps, FREE RACE, credits, prize money and bags, what each upgrade
   does, continues) and the controls.
-- **Sign-up**: three colour panels (red, yellow, blue) like the original's join screen. Player 1 enters three
-  initials arcade style (up/down cycles A–Z and space, left/right moves, typing A–Z also works; default "ACE", or
-  the last season's), then picks a colour by moving the card between the panels. The other panels show the CPU
-  driver who takes that colour. The original also asked for a birth date and a country; we skip both.
-  Up to 3 players by design: `SeasonState.players` is an array (1..3, distinct colours, never grey), the line-up puts
-  humans in the first slots, results and credits are per player. Only slot 0 takes input in a race for now (OR4 adds
-  local 2-player).
+- **Sign-up**: three colour panels (red, yellow, blue) like the original's join screen, for up to three humans
+  (local multiplayer, below). A panel nobody joined says PRESS START TO JOIN over the CPU driver who takes that
+  colour otherwise. A player joins with their start key (W / Left Shift / Space: the WASD side; Up / Enter / Right
+  Ctrl: the arrows side; (A) on a pad) and gets the first free panel (or last season's colour), enters three initials
+  arcade style (up/down cycles A–Z and space, left/right moves; typing A–Z also works on the keyboard; defaults
+  ACE / JET / MAX, or last season's), moves the card to a free colour and confirms READY. Once every joined player
+  is READY (at least one), a ready player's start key starts the season. Esc steps the last joined player back (or
+  leaves the sign-up when nobody joined). The original also asked for a birth date and a country; we skip both.
+  `SeasonState.players` is an array (1..3, distinct colours, never grey), the line-up puts humans in the first slots.
 - **Get ready**: the player's panel with GET READY!, the race number and a map of the track while the race builds
   (at least 1.6 s); the race then starts with its own GET READY! / lamps.
 - **Results**: the podium as before, plus FREE RACE! (green) or CREDIT LOST / NO CREDITS LEFT (red), the cash and
-  the credits; Enter / (A) → the shop, or CONTINUE? when the credits are gone.
+  the credits (with 2+ humans one compact box per human and every human's finish time); Enter / (A) → the shop, or
+  CONTINUE? when any human's credits are gone.
 - **Speed Shop**: the player's colour panel turns into the shop (CREDITS, CASH, six tiles: NITRO 10K, ACCEL. 80K,
   TIRES 40K, TOP SPD 100K, SHOCKS 60K with five-box level bars, nitro with a gauge and the count, and START NEXT RACE
   with a top-down map of the next track and its name, "(R)" when reversed). The other two panels show the CPU
   drivers' levels and cash; the grey boss's levels run along the bottom. Arrows move over the 2×3 grid, Enter buys
-  or starts; Esc twice saves and quits to the title.
-- **Continue?**: the player's panel with a 9 → 0 countdown (real seconds). Enter / (A) continues: credits back to 3,
-  cash to $0, upgrades and nitros kept. Esc or the countdown running out → GAME OVER (6 s or a press) → the title;
-  the save is deleted.
+  or starts; Esc twice saves and quits to the title. With 2–3 humans they shop in turn (player 1 first): the
+  shopping player's panel is the shop ("PLAYER n XYZ SHOPPING"), the other humans' panels show their truck, levels,
+  cash, credits and nitros with NEXT / DONE, and START NEXT RACE hands the shop to the next human (the last one
+  starts the race). Only the shopping player's keys / pad act.
+- **Continue?**: every human out of credits gets their panel with their own 9 → 0 countdown (real seconds, running
+  side by side); the other humans' panels say WAITING. Their start key / (A) continues: credits back to 3, cash to $0,
+  upgrades and nitros kept. Esc / (B) or the countdown running out gives up: with other humans left, that colour
+  becomes a CPU truck (our CPU driver for the colour, keeping the truck's upgrades and cash; `dropToCpu`) and a lone
+  human left gets the whole keyboard back; when nobody is left → GAME OVER (6 s or a press) → the title; the save is
+  deleted.
 
-Menus read input once per frame (`engine/input.ts` `drainMenu()`: keyboard arrows/WASD, Enter/Space, Esc/Backspace,
-letters; every pad's d-pad/stick, A/Start, B/Back, edge-triggered). Key presses made during a race are dropped on
+Menus read input once per frame (`engine/input.ts` `drainMenu()`: keyboard arrows/WASD, Enter/Space/Shift/Right Ctrl,
+Esc/Backspace, letters; every pad's d-pad/stick, A/Start, B/Back, edge-triggered). Every press carries its source
+(`wasd`, `arrows`, `kb` for Esc/Backspace/other letters, `padN`); the flow turns that into the human it belongs to
+(`Flow.ownerOf`: their keyboard side or their pad; anyone with one human, for Esc and for tests) and the shop and
+continue screens only act on the right player's presses. Key presses made during a race are dropped on
 every screen change (`clearPressed()`), so a held arrow or a stray Enter never acts on the next screen. In a season
 race R does nothing (no restarts to farm prize money); the standalone `?scene=race` keeps R and Enter-to-restart.
 
@@ -353,9 +380,9 @@ hints, sign-up and continue screens are DOM only (no 3D running).
 |---|---|---|
 | Prize money | 100K / 90K / 80K / 70K by place, plus the money bags picked up | the original's table |
 | Start | $0, 3 credits, 25 nitros (CPU trucks 10 each race) | the original's home versions differ (2 or 3 credits); we use 3 |
-| Credit | −1 when any CPU truck finishes ahead of the player | a human ahead doesn't count |
+| Credit | −1 when any CPU truck finishes ahead of that human | per human; a human ahead doesn't count |
 | FREE RACE! | every CPU truck finished behind the player | no credit used |
-| Out of credits | CONTINUE? 9 s: credits back to 3, cash to $0, upgrades kept | else game over |
+| Out of credits | CONTINUE? 9 s per human: credits back to 3, cash to $0, upgrades kept | else that colour drops to CPU; game over when no human is left |
 | Prices | Nitro 10K, Acceleration 80K, Tires 40K, Shocks 60K, Top Speed 100K, the same at every level | |
 | Levels | 5 per upgrade (stock = 0); nitro has no levels, at most 99 carried | |
 | Nitro per buy | **1** | a pickup gives 1–2, so 10K for one burst keeps nitro a choice against upgrades |
@@ -392,13 +419,19 @@ which then alternates forward / reversed). A track without a `reverse` variant i
 
 ### Save (`localStorage`)
 - `or.settings`: `{ dos: boolean, palette: 256 | 16 | 0 }`, the DOS look (engine/retro.ts); default off.
-- `or.season`: `{ v: 1, race, players: [{ initials, colour, cash, credits, levels, nitros }], cpus: [{ colour,
-  cash, levels, nitros }], last: { track, outcomes, places } }`, written after every race, purchase and continue;
-  deleted on game over. CONTINUE SEASON on the title reopens it at the shop (or at CONTINUE? with no credits).
+- `or.season`: `{ v: 2, race, players: [{ initials, colour, keys, cash, credits, levels, nitros }], cpus: [{ colour,
+  cash, levels, nitros }], last: { track, outcomes (per player), places (per slot) } }`, written after every race,
+  purchase, continue and drop-out; deleted on game over. `keys` is the player's keyboard side ('solo' alone, 'wasd',
+  'arrows', null = pad only); pads aren't saved (lent in join order after a reload). A v1 save (OR3: one player, no
+  `keys`) is migrated on load (`migrateSeason`: keys 'solo'). CONTINUE SEASON on the title reopens it at the shop (or
+  at CONTINUE? when someone has no credits).
 - `or.records`: the per-track records as before; the record holder is the player's initials now (the demo race
   and forced test finishes never set one).
 
 ### Audio
+Every human truck is a player for the sound: the `engine` event's `player` flag (`Session.isHuman`) and the bridge's
+`isPlayer(truck)` mark each human's engine, skids, nitro, laps and finish at player level (`AudioEvents.*.player`;
+without it `AudioSystem.playerTruck` decides, as before).
 `GameEvents.screen { name }` (title, hints, register, getready, race, results, shop, continue, gameover) goes through
 `audio/bridge.ts`: title / hints / sign-up → the `title` song (not restarted between them), shop → `shop`, continue
 and game over → silence; race and podium music still follow the race phases (each race start picks the next race
@@ -545,6 +578,22 @@ triangles are per pass):
 
 The fans now add 9–12 draw calls and ~49k triangles per pass (half of before); the four billboards add ~12 draw
 calls. SwiftShader is CPU-bound at ~4 fps either way, so the frame rate does not move there.
+
+### Local multiplayer (`engine/input.ts`, `game/flow.ts`)
+Up to three humans like the original (red, yellow, blue; grey is always the CPU boss). They join at the sign-up
+(above); colours nobody joins race as CPU drivers with our CPU names. Each human has their own cash, nitros, upgrades
+and credits, shops in turn and gets their own CONTINUE? countdown.
+
+| Humans | Keys (`KEY_SCHEMES`) | Pads |
+|---|---|---|
+| 1 | `solo`: arrows or WASD, Space / Shift = nitro | any pad (`readInput()`) |
+| 2–3 | `wasd`: W A S D, Left Shift = nitro · `arrows`: arrows, Right Ctrl / Enter = nitro · the third human: none | a pad a human joined with stays theirs; the other connected pads go to the humans without one in join order (`padsFor`) |
+
+A human's keyboard side is the side they joined with (`PlayerState.keys`, saved); a test sign-up without a source
+takes the first free side. `Flow.controls` (one `Control { keys, pad }` per human) follows the season's players;
+`readPlayers(controls)` gives one TruckInput per human every step (a pad wins while it's being used, else the keys),
+and `Race.step` hands input k to human k's slot. The rubber band follows the leading human; the race's straggler
+clock starts when the last human is in; the "1ST PLACE!" banner names the human when there are several.
 
 ### DOS look (`engine/retro.ts`)
 Off by default. F2 cycles off → 256 colours → 16 colours → off (a toast says which); the title menu has a

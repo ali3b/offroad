@@ -147,8 +147,11 @@ try {
   await press('confirm');
   check((await st()).screen === 'register', 'hints → sign-up');
   await shot('register');
-  await press('confirm', 'confirm', 'confirm');
+  // Join (start), three initials, then the colour; READY; start the season.
+  await press('confirm', 'confirm', 'confirm', 'confirm');
   await shot('register-colour');
+  await press('confirm');
+  check((await st()).signup?.[0]?.step === 'ready', 'player 1 ready');
   await press('confirm');
   s = await st();
   check(s.screen === 'getready' && s.player.initials === 'ACE' && s.player.colour === 'red', `signed up as ${s.player?.initials} (${s.player?.colour}), GET READY!`);

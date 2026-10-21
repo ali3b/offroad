@@ -1,7 +1,8 @@
 // The game's event bus. The race and the trucks emit what happened; the audio lane (src/audio/**) and any other
 // listener subscribe with `events.on(type, fn)`. Emitting never throws: a listener's error is logged and skipped.
 //
-// Truck indices are race slots: 0 = the player (red), 1..3 = CPU trucks (see race/roster.ts).
+// Truck indices are race slots: the humans first (season: players 1..3; standalone: slot 0), then the CPU trucks
+// (see race/roster.ts, game/season.ts lineup()). `engine.player` is true for every human truck.
 
 export interface GameEvents {
   /** Every rendered frame, per truck: engine load for an engine sound. rpm 0..1 (idle..redline). */

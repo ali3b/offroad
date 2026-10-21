@@ -43,6 +43,13 @@ const CSS = `
 .or-results .note { font-size: 18px; letter-spacing: 2px; animation: or-blink .6s steps(2) 6; }
 .or-results .note.free { color: #5cff6a; }
 .or-results .note.lost { color: #ff5a4a; }
+.or-results .humans { display: flex; gap: 14px; }
+.or-results .human { background: #0b0f22; border: 3px solid var(--c); padding: 5px 12px; font-size: 9px; line-height: 1.9; text-align: center; }
+.or-results .human .nm { color: var(--c); font-size: 11px; }
+.or-results.many .podium3d { height: 240px; }
+.or-results.many { gap: 9px; }
+.or-results .human .free { color: #5cff6a; }
+.or-results .human .lost { color: #ff5a4a; }
 .or-results .again { font-size: 12px; color: #fff; animation: or-blink 1s steps(2) infinite; }
 @keyframes or-blink { 50% { opacity: .25; } }
 @media (max-width: 960px) { .or-results .podium3d { width: calc(88vw + 42px); height: 28vw; }
@@ -74,6 +81,8 @@ export class ResultsScreen {
     credits?: number;
     /** The blinking prompt at the bottom. */
     prompt?: string;
+    /** Local multiplayer (2+ humans): one summary per human instead of the single note / cash line. */
+    humans?: { slot: number; nick: string; hex: string; cash: number; credits: number; note?: { text: string; kind: 'free' | 'lost' } }[];
   }) {
     const me = o.results[0];
     // Podium order: 2nd, 1st, 3rd, 4th (the winner raised in the middle).
@@ -105,12 +114,24 @@ export class ResultsScreen {
     const rec = o.record ? `Record (${o.record.who}): ${o.record.time.toFixed(2)}` : 'Record: --.--';
     const me_ = o.entries[0];
     const you = me_?.human ? me_.nick : 'YOU';
+    const many = (o.humans?.length ?? 0) > 1;
+    const finish = many
+      ? o.humans!.map((h) => `${h.nick} ${secs(o.results.find((r) => r.slot === h.slot)?.time ?? null)}`).join(' &middot; ')
+      : `${you} Finish Time: ${secs(me.time)}`;
+    const summary = many
+      ? `<div class="humans">${o.humans!.map((h) => {
+          const r = o.results.find((x) => x.slot === h.slot)!;
+          return `<div class="human" style="--c:${h.hex}" data-slot="${h.slot}"><div class="nm">${h.nick}${h.note ? ` &middot; <span class="${h.note.kind}">${h.note.text}</span>` : ''}</div>
+            <div>Won ${money(r.prize + r.bags)} &middot; Cash ${money(h.cash)} &middot; Credits ${h.credits}</div></div>`;
+        }).join('')}</div>`
+      : `${o.note ? `<div class="note ${o.note.kind}">${o.note.text}</div>` : ''}
+      <div class="cash">You won ${money(me.prize + me.bags)} &nbsp; Cash ${money(o.cash)}${o.credits !== undefined ? ` &nbsp; Credits ${o.credits}` : ''}</div>`;
+    this.el.classList.toggle('many', many);
     this.el.innerHTML = `<div class="title">${o.track.toUpperCase()}</div>
-      <div class="times">${you} Finish Time: ${secs(me.time)}<br><span class="${o.newRecord ? 'new' : 'rec'}">${rec}${o.newRecord ? ' NEW!' : ''}</span></div>
+      <div class="times">${finish}<br><span class="${o.newRecord ? 'new' : 'rec'}">${rec}${o.newRecord ? ' NEW!' : ''}</span></div>
       ${in3d ? '<div class="podium3d"></div>' : `<div class="podium">${cols}</div>`}
       <div class="plates">${plates}</div>
-      ${o.note ? `<div class="note ${o.note.kind}">${o.note.text}</div>` : ''}
-      <div class="cash">You won ${money(me.prize + me.bags)} &nbsp; Cash ${money(o.cash)}${o.credits !== undefined ? ` &nbsp; Credits ${o.credits}` : ''}</div>
+      ${summary}
       <div class="again">${o.prompt ?? 'PRESS ENTER OR (A) TO RACE AGAIN'}</div>`;
     this.parent.appendChild(this.el);
     if (in3d)
