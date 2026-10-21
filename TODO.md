@@ -21,7 +21,7 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [x] `scripts/load-check.mjs` (SwiftShader, no errors, heightfield ↔ grid check, `test-results/<scene>.png`)
 - [x] `scripts/build-assets.mjs` (`ssg model apply`; a notice until the command exists, OR-FB-001)
 - [x] `scripts/deploy-pages.mjs` (gh-pages + .nojekyll; skips the push without an origin) and `scripts/record.mjs`
-- [ ] GitHub repo `ali3b/offroad` (public) + first push + Pages live (orchestrator: auth)
+- [x] GitHub repo `ali3b/offroad` (public) + first push + Pages live (orchestrator: auth)
 
 ## OR1 · The truck (gate: feel)
 - [x] Placeholder box truck on Rapier `DynamicRayCastVehicleController`: 4 raycast wheels, suspension, 4WD
@@ -56,7 +56,7 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [x] Release: screenshots in the README, the trailer with sound (`scripts/trailer.mjs`: ~115 s trailer, 25 s short,
       README GIF; test-results/video, never in master), README (features, controls, credits, licence) + MIT LICENSE,
       a deploy-ready Pages build (`deploy-pages.mjs --no-push`: models, videos, gallery.html; load-checked from a sub-path)
-- [ ] Release: push the repo and gh-pages, Pages live (orchestrator: auth)
+- [x] Release: push the repo and gh-pages, Pages live (orchestrator: auth)
 
 ## OR3 · Season and shop
 - [x] All 8 tracks: Coyote Canyon, Bone Yard, Dry Creek Spiral, Twister Flats, Buzzard Bend, Thunder Ridge, Mesa Mayhem
@@ -69,7 +69,7 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       CONTINUE? 9 s → cash $0, game over; `or.season` save + CONTINUE SEASON; per-track `or.records`;
       `scripts/season-check.mjs`, vitest unit tests)
 - [x] Video (the trailer covers the season: sign-up, a race, the podium, the Speed Shop, four more tracks)
-- [ ] Pages deploy (orchestrator: auth)
+- [x] Pages deploy (orchestrator: auth)
 
 ## OR4 · Presentation
 - [x] Title / attract mode with a demo race (our DOS-style logo, the demo race behind it, hints in the attract loop,
