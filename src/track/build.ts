@@ -444,6 +444,7 @@ function stadium(t: TrackData, g: HeightGrid) {
       crowd.setColorAt(i++, palette[Math.floor(hash(k * 3.1, r * 7.7) * palette.length)]);
     }
   crowd.castShadow = true;
+  stand.name = 'grandstand'; crowd.name = 'crowd'; // race/crowd.ts swaps the boxes for the generator's fans
   stand.add(crowd);
   return group;
 }

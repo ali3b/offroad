@@ -14,6 +14,7 @@ import type { TruckModels } from './models';
 import { Particles } from '../fx/particles';
 import { SkidMarks } from '../fx/skids';
 import { events } from './events';
+import { Crowd } from './crowd';
 
 export interface Racer {
   slot: number;
@@ -30,6 +31,8 @@ export class Session {
   readonly particles = new Particles();
   readonly skids = new SkidMarks();
   readonly queue = new RAPIER.EventQueue(true);
+  /** The grandstand fans (async: they appear once the character GLBs have loaded). */
+  readonly crowd: Crowd;
   time = 0;
   private byCollider = new Map<number, number>();
   private wallHandles = new Set<number>();
@@ -46,6 +49,7 @@ export class Session {
   ) {
     this.track = buildTrack(data, world);
     void dressTrack(this.track);
+    this.crowd = new Crowd(this.track);
     scene.add(this.track.group, this.skids.mesh, this.particles.mesh);
     for (const w of this.track.walls) this.wallHandles.add(w.handle);
     // The season passes its own line-up (the player's colour and initials, CPU drivers); else the default roster.
@@ -221,9 +225,11 @@ export class Session {
     });
     this.particles.sync();
     this.skids.sync(this.time);
+    this.crowd.update(this.time);
   }
 
   dispose() {
+    this.crowd.dispose();
     for (const r of this.racers) {
       r.view.dispose();
       this.world.removeVehicleController(r.truck.controller);

@@ -388,6 +388,12 @@ export class Flow {
       resultsVisible: () => !!this.race?.results.visible,
       /** The results screen's 3D podium (ui/podium-view.ts): stop(), tick(dt), info. */
       podium: () => podiumView(),
+      /** The grandstand fans: cheer(s), cheering, drawCalls(), ready. */
+      crowd: () => scene().session.crowd,
+      /** The race scene's camera (tools: close-ups for screenshots; a resize re-fits it). */
+      camera3d: () => scene().camera,
+      /** The main renderer's last frame: draw calls (incl. the shadow pass) and triangles. */
+      renderInfo: () => ({ calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }),
       setInput: (i: Partial<TruckInput> | null) => (this.override = i ? { ...NO_INPUT, ...i } : null),
       reset: () => scene().session.reset(),
       place: (x: number, z: number, heading = 0, lift = 1.4) => {

@@ -165,6 +165,7 @@ export class RaceScene {
     this.hud.dispose();
     // Truck views may share the generator's GLB geometry with later races: detach them, don't dispose them.
     for (const r of this.session.racers) r.view.dispose();
+    this.session.crowd.dispose();
     this.scene.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.geometry) m.geometry.dispose();
