@@ -12,7 +12,7 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
   - [ ] laps per race, the prize money table, upgrade prices and levels (Acceleration, Tires, Shocks, Top Speed at
         5 levels each, plus nitros), pickups (nitro, cash), CPU behaviour, the difficulty curve over 99 races, continues
   - [ ] the camera angle and projection measured from screenshots (compare with `src/engine/camera.ts` CAMERA)
-- [ ] Pack gap list: the Synty packs that would fill grandstands/crowd, desert dressing, race furniture (the user
+- [x] Pack gap list: the Synty packs that would fill grandstands/crowd, desert dressing, race furniture (the user
       decides what to buy); stand-ins until then (benches + characters, tyre walls, traffic lights as start lamps)
 - [x] Repo skeleton: Vite 5.4.11 + TS 5.6.3 + three 0.186.1 + Rapier (`@dimforge/rapier3d-compat` 0.21.0),
       dev port 5199, `CLAUDE.md`, `.mcp.json`, `ssg.models.json`, `FEEDBACK.md`, `docs/DESIGN.md`, `README.md`
