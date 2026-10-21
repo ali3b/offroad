@@ -7,7 +7,8 @@
 //   mode 'demo'   the title screen's attract race: every truck on AI, no records, no banners
 import * as THREE from 'three';
 import { createScene } from '../engine/renderer';
-import { fitFixedCamera } from '../engine/camera';
+import { CAMERA, fitFixedCamera, type FreeRect } from '../engine/camera';
+import { applyCrowdQuality, applySunQuality } from '../engine/quality';
 import { hasModels } from '../race/models';
 import { STAND_TOP } from '../track/stadium-view';
 import { createWorld, RAPIER } from '../physics/world';
@@ -47,7 +48,12 @@ export class RaceScene {
   readonly hud: RaceHud;
   readonly results: ResultsScreen;
   readonly camera = new THREE.PerspectiveCamera();
+  readonly sun: THREE.DirectionalLight;
   private frameBox: THREE.Box3;
+  /** What the touch controls keep clear (CSS px; ui/touch/controls.ts reserve()), null without them. */
+  private reserve: { left: number; right: number; bottom: number } | null = null;
+  /** How the camera made room for the touch controls: 'none', 'sides' or 'bottom'. */
+  fit: 'none' | 'sides' | 'bottom' = 'none';
   resultsShown = false;
 
   static async create(opts: RaceSceneOpts) {
@@ -59,7 +65,9 @@ export class RaceScene {
     readonly world: RAPIER.World,
     readonly opts: RaceSceneOpts,
   ) {
-    this.scene = createScene().scene;
+    const stage = createScene();
+    this.scene = stage.scene;
+    this.sun = stage.sun;
     const { data, mode } = opts;
     const racing = mode !== 'test';
     const cpus = Math.max(0, Math.min(3, opts.cpus ?? 3));
@@ -84,15 +92,42 @@ export class RaceScene {
     // The title's demo race runs under the logo: no HUD panel or track name.
     if (mode === 'demo') this.hud.show(false);
     if (this.race) this.race.onPickup = (text, x, y, z) => this.hud.float(text, x, y, z, text.includes('NITRO') ? '#7fe3ff' : '#ffe14a');
+    void this.session.crowd.ready.then(() => this.applyQuality());
     this.resize();
+  }
+
+  /** The render quality (engine/quality.ts) on this scene: the sun's shadow map, the skinned fans. */
+  applyQuality() {
+    applySunQuality(this.sun);
+    applyCrowdQuality(this.session.crowd.root);
   }
 
   get mode() {
     return this.opts.mode;
   }
 
-  resize() {
-    fitFixedCamera(this.camera, this.frameBox, window.innerWidth / window.innerHeight);
+  /**
+   * Fit the camera to the window. With the touch controls up (`reserve`, CSS px from the edges) the track keeps out
+   * of either the side columns or the bottom strip, whichever leaves it bigger (side columns on a phone, the bottom
+   * strip on a tablet).
+   */
+  resize(reserve: { left: number; right: number; bottom: number } | null = this.reserve) {
+    this.reserve = reserve;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const aspect = w / h;
+    const top = 1 - CAMERA.hudTop;
+    if (!reserve) {
+      fitFixedCamera(this.camera, this.frameBox, aspect);
+      this.fit = 'none';
+    } else {
+      const sides: FreeRect = { left: -1 + (2 * reserve.left) / w, right: 1 - (2 * reserve.right) / w, bottom: -1, top };
+      const bottom: FreeRect = { left: -1, right: 1, bottom: -1 + (2 * reserve.bottom) / h, top };
+      const ds = fitFixedCamera(this.camera, this.frameBox, aspect, sides).distance;
+      const db = fitFixedCamera(this.camera, this.frameBox, aspect, bottom).distance;
+      this.fit = ds < db ? 'sides' : 'bottom';
+      if (ds < db) fitFixedCamera(this.camera, this.frameBox, aspect, sides);
+    }
     this.hud.place(this.camera);
   }
 

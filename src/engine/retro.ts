@@ -1,7 +1,7 @@
 // The "DOS look": an optional post-process for the race view. The scene is drawn into a ~200-line render target,
 // then scaled up with nearest-neighbour sampling onto the screen, with an optional palette (VGA-style 256 colours
 // as 3-3-2 bits, or the 16-colour EGA palette, both with 4×4 ordered dithering) and dark scanlines between the
-// low-res rows. Saved in localStorage `or.settings` ({ dos, palette }); off by default. F2 cycles
+// low-res rows. Saved in localStorage `or.settings` ({ dos, palette, quality, haptics }); off by default. F2 cycles
 // off → 256 colours → 16 colours → off, and the title menu has the same toggle.
 import * as THREE from 'three';
 
@@ -11,10 +11,16 @@ export interface Settings {
   dos: boolean;
   /** Colours when it is on: 256 (3-3-2), 16 (EGA) or 0 (full colour, just pixels and scanlines). */
   palette: Palette;
+  /** Render quality (engine/quality.ts): auto picks low on small touch screens or a slow frame rate. */
+  quality: QualitySetting;
+  /** Vibrate on nitro and crashes (touch devices with navigator.vibrate). */
+  haptics: boolean;
 }
 
+export type QualitySetting = 'auto' | 'low' | 'high';
+
 const KEY = 'or.settings';
-export const DEFAULT_SETTINGS: Settings = { dos: false, palette: 256 };
+export const DEFAULT_SETTINGS: Settings = { dos: false, palette: 256, quality: 'auto', haptics: true };
 /** Rows of the low-res frame (the original's 320×200 mode); the width follows the window's aspect. */
 export const RETRO_ROWS = 200;
 
@@ -24,6 +30,8 @@ export function loadSettings(): Settings {
     return {
       dos: v?.dos === true,
       palette: v?.palette === 16 || v?.palette === 0 ? v.palette : 256,
+      quality: v?.quality === 'low' || v?.quality === 'high' ? v.quality : 'auto',
+      haptics: v?.haptics !== false,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -43,8 +51,9 @@ const listeners = new Set<(s: Settings) => void>();
 
 export const getSettings = () => settings;
 
-export function setSettings(s: Settings) {
-  settings = { ...s };
+/** Change some settings (the rest stay), save them and tell the listeners. */
+export function setSettings(s: Partial<Settings>) {
+  settings = { ...settings, ...s };
   saveSettings(settings);
   for (const fn of listeners) fn(settings);
 }

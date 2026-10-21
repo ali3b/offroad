@@ -29,6 +29,8 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
 - Arrows or WASD: up = gas, down = brake/reverse, left/right = steer. Space or Shift = nitro. R = reset to the grid
   (standalone scenes only; a season race can't be restarted). Menus: arrows/WASD, Enter/Space, Esc.
 - Gamepad: RT or A = gas, LT or X = brake/reverse, left stick or d-pad = steer, B / Y / RB = nitro, Back = reset.
+- Touch (phones, tablets; `src/ui/touch/`): a slide pad steers (left thumb), GAS / BRAKE / NITRO on the right, II
+  pauses (Esc / P on the keyboard); menus by tap. A key or pad hides the touch UI. `?quality=low|high|auto`.
 - F3 = debug overlay (speed, wheel contacts, suspension, air time, fps). `?debug` opens it on load.
 - F2 = the DOS look (off → 256 colours → 16 colours; also on the title menu), saved in localStorage `or.settings`.
 
@@ -56,6 +58,8 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
     nitro jump off the ramp; writes `test-results/drive-*.png`.
   - `node scripts/race-check.mjs http://localhost:5199 [track] [--reverse]`: a full 4-lap race on autopilot; all
     four trucks finish, laps counted by the gates, results with prize money; writes `test-results/race-*.png`.
+  - `node scripts/mobile-check.mjs http://localhost:5199`: phones and a tablet by touch alone (sign-up, race
+    controls, shop, rotate card); writes `test-results/mobile-*.png`.
   - `node scripts/season-check.mjs http://localhost:5199`: the season flow (3 autopilot races, the shop, rotation,
     credits, continue, game over); writes `test-results/season-*.png`.
 - `npm test` (vitest): the pure season logic (rotation, shop, credits).

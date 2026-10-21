@@ -32,7 +32,7 @@ source assets by hand.
 - **The DOS look** (F2): 200 lines, a 256- or 16-colour palette and scanlines.
 - **Local multiplayer for up to 3 players** (red, yellow, blue; grey is always the CPU boss): each joins at the
   sign-up with their own keys or pad, and has their own cash, credits, upgrades and turn at the Speed Shop.
-- Keyboard and gamepad.
+- Keyboard, gamepad and **touch**: phones and tablets get on-screen race controls and tap-driven menus (below).
 
 ![A race on Rattlesnake Run](docs/screenshots/race-rattlesnake.png)
 
@@ -70,6 +70,15 @@ Eight stadium tracks in season order, each also raced in reverse (`?scene=race&t
 | Mute | M | |
 | DOS look (off, 256, 16 colours) | F2 | |
 | Debug overlay | F3 | |
+| Pause (race) | Esc or P | |
+
+| | Touch (phones and tablets) |
+|---|---|
+| Steer | the slide pad bottom-left: slide your left thumb; how far you slide is how hard you steer (press an end for full lock). A thumb anywhere else on the left half steers from where it lands |
+| Gas / brake, reverse / nitro | GAS, BRAKE and NITRO on the right; any touch on the right half that isn't on BRAKE or NITRO is gas. NITRO also gives gas, so roll your thumb onto it. Steer, gas and nitro work together (multi-touch) |
+| Pause | the II button top-left: RESUME, SOUND, QUIT TO TITLE (a standalone race: RESTART) |
+| Menus | tap: TAP TO START, the hints' NEXT, a truck panel to join, ▲ / ▼ for each initial, OK, ◀ ▶ for the colour, READY, START; a Speed Shop tile buys it; tap the results to go on |
+| Settings | the title's chips: DOS LOOK, QUALITY (auto / low / high), SOUND, VIBRATE (Android), and the fullscreen button |
 
 **Local multiplayer (2–3 players).** At the driver sign-up each player joins a colour panel by pressing their start
 key or (A) on a pad, enters initials and confirms READY; colours nobody joins race as CPU drivers. With one player the
@@ -83,6 +92,25 @@ whole keyboard and every pad drive the one truck (the table above); with two or 
 Every player can also drive with a pad: a player who joined with a pad keeps it; the other pads are lent to the
 keyboard players in join order. In the menus each player's keys / pad act for them (the Speed Shop is visited in
 turn); Esc works for whoever is up.
+
+## Mobile
+
+Off Road plays on phones and tablets in landscape (portrait shows a "rotate your device" card and pauses a race).
+On a touch screen the menus take taps and the race shows the touch controls above; the camera keeps the track and
+the HUD panel clear of them (side columns on a phone, a bottom strip on a tablet). Pressing a key or using a pad
+hides them again; the next touch brings them back. A touch player is always player 1; more players can still join
+with keys or pads.
+
+- **Add to Home Screen** (iOS Safari: Share → Add to Home Screen; Android Chrome: Install app) gives a full-screen
+  app with its own icon. On Android the title's fullscreen button also locks landscape.
+- **Quality** (title chip, or `?quality=low|high|auto`): auto starts low on a phone-sized touch screen and drops to
+  low on any device that runs a race under 40 fps for 3 s. Low = pixel ratio 1, no antialiasing, a smaller shadow
+  map, fewer particles and the crowd without its animated fans.
+- **Vibration** on nitros and hard crashes where the browser supports it (Android), switchable on the title.
+- Sound starts on the first tap (browsers keep it off until then).
+
+![A race on a phone with the touch controls](docs/screenshots/mobile-race.png)
+![The sign-up's letter picker on a phone](docs/screenshots/mobile-signup.png)
 
 ## Develop
 
@@ -101,6 +129,7 @@ node scripts/load-check.mjs http://localhost:5199 race track=mesa reverse   # an
 node scripts/race-check.mjs http://localhost:5199        # a full 4-lap race on autopilot to the results
 node scripts/season-check.mjs http://localhost:5199      # the season flow: 3 races, the shop, credits, continue
 node scripts/twoplayer-check.mjs http://localhost:5199   # local multiplayer: 2 players join with keys, shop in turn, credits per player
+node scripts/mobile-check.mjs http://localhost:5199      # phones + tablet by touch alone: sign-up, race controls, shop, rotate card
 npm test                                                 # unit tests (track rotation, shop, credits)
 node scripts/race-check.mjs http://localhost:5199 buzzard --reverse
 node scripts/track-map.mjs http://localhost:5199 twister # a top-down layout map + line/gate/wall lint

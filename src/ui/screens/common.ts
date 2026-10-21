@@ -28,6 +28,9 @@ const CSS = `
 .or-scr.solid { background: #0c2f4a; }
 .or-scr .blink { animation: or-scr-blink 1s steps(2) infinite; }
 @keyframes or-scr-blink { 50% { opacity: 0; } }
+/* Buttons never blink out (a tap target must stay visible): they pulse brighter instead. */
+.or-scr .pulse { animation: or-scr-pulse 1s steps(2) infinite; }
+@keyframes or-scr-pulse { 50% { filter: brightness(1.45); } }
 .or-scr .banner { height: 86px; display: flex; align-items: center; justify-content: center; gap: 22px;
   background: linear-gradient(#1b1b22 0 6px, #e9e4d4 6px 10px, #2a3b78 10px calc(100% - 10px), #e9e4d4 calc(100% - 10px) calc(100% - 6px), #1b1b22 calc(100% - 6px));
   border-bottom: 4px solid #000; }
@@ -52,6 +55,20 @@ const CSS = `
 .or-scr .truck-ico { width: 120px; height: 64px; }
 .or-scr .panel .trophy { width: 34%; max-width: 140px; margin-top: auto; opacity: .85; }
 @media (max-width: 900px) { .or-scr .panels { gap: 8px; padding: 10px; } .or-scr .banner h1 { font-size: 20px; } .or-scr .panel .who { font-size: 11px; } }
+/* Phones in landscape (and other short windows): a thin banner, tighter panels, clear of the notch. */
+.or-scr .panels { padding-left: max(40px, calc(env(safe-area-inset-left) + 8px)); padding-right: max(40px, calc(env(safe-area-inset-right) + 8px)); }
+@media (max-width: 900px) { .or-scr .panels { padding-left: max(10px, calc(env(safe-area-inset-left) + 4px)); padding-right: max(10px, calc(env(safe-area-inset-right) + 4px)); } }
+@media (max-height: 560px) {
+  .or-scr .banner { height: 46px; gap: 14px; background: linear-gradient(#1b1b22 0 3px, #e9e4d4 3px 5px, #2a3b78 5px calc(100% - 5px), #e9e4d4 calc(100% - 5px) calc(100% - 3px), #1b1b22 calc(100% - 3px));
+    border-bottom-width: 3px; }
+  .or-scr .banner h1 { font-size: 18px; }
+  .or-scr .chequer { width: 40px; height: 24px; background-size: 8px 8px; border-width: 2px; }
+  .or-scr .panels { top: 46px; }
+  .or-scr .panel { border-width: 3px; padding: 10px 8px; gap: 8px; }
+  .or-scr .panel .small { font-size: 8px; line-height: 1.6; }
+  .or-scr .foot { bottom: 6px; font-size: 7px; }
+  .or-scr .bars { gap: 6px; } .or-scr .lv i { width: 11px; height: 7px; }
+}
 `;
 
 export function screenEl(cls: string, solid = true) {

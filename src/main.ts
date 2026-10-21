@@ -18,6 +18,7 @@ import { getAudio } from './audio';
 import { bridgeAudio } from './audio/bridge';
 import { Flow } from './game/flow';
 import { preloadPodium } from './ui/podium-view';
+import { initMobile } from './ui/touch/mobile';
 
 const SCENES = ['title', 'shop', 'register', 'race', 'test', 'audio', 'podium'] as const;
 
@@ -43,6 +44,8 @@ async function boot() {
   // RAPIER.init() once up front (each race then gets its own world).
   const [, models] = await Promise.all([createWorld().then((w) => w.free()), loadTruckModels()]);
   initKeyboard();
+  // Phones and tablets: touch mode, taps, no zoom / scroll, the rotate card, haptics (ui/touch/mobile.ts).
+  initMobile();
   const flow = new Flow(stage.renderer, models, params);
   bridgeAudio(
     events,

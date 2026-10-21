@@ -4,7 +4,31 @@
 // Two or three humans (local multiplayer) split the keyboard: the WASD player (Left Shift = nitro), the arrows player
 // (Right Ctrl or Enter = nitro); a third player drives with a gamepad. Every human can also use a pad: a player who
 // joined with a pad keeps that pad, the other pads go to the other players in join order (padsFor()).
+// Touch (phones, tablets): the on-screen race controls (ui/touch/controls.ts) set a 'touch' TruckInput that drives
+// player 1 (alone, or as player 1 of a local multiplayer season); menu taps come in through pushMenu() with
+// src 'touch'. The input mode (touch / keys / pad) follows the last device used and shows or hides the touch UI.
 import type { TruckInput } from '../physics/vehicle';
+
+// ---- Input mode -------------------------------------------------------------------------------------------------
+
+/** The device the player used last: the touch UI shows in 'touch' mode only. */
+export type InputMode = 'touch' | 'keys' | 'pad';
+const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+let mode: InputMode = coarse ? 'touch' : 'keys';
+const modeListeners = new Set<(m: InputMode) => void>();
+
+export const inputMode = () => mode;
+
+export function setInputMode(m: InputMode) {
+  if (m === mode) return;
+  mode = m;
+  for (const fn of modeListeners) fn(m);
+}
+
+export function onInputMode(fn: (m: InputMode) => void) {
+  modeListeners.add(fn);
+  return () => modeListeners.delete(fn);
+}
 
 const held = new Set<string>();
 const pressed = new Set<string>();
@@ -12,7 +36,11 @@ const pressed = new Set<string>();
 const menuQueue: string[] = [];
 
 export function initKeyboard() {
+  // A finger on the screen switches to touch mode; a key or a pad (readInput / drainMenu) switches back.
+  window.addEventListener('pointerdown', (e) => e.pointerType === 'touch' && setInputMode('touch'), { capture: true });
   window.addEventListener('keydown', (e) => {
+    // Tools (F2/F3/M) and modifier keys alone keep the touch UI up.
+    if (!/^(F\d+|KeyM|Meta|Alt|Control|Shift)/.test(e.code)) setInputMode('keys');
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F2', 'F3', 'Backspace', 'ControlRight'].includes(e.code)) e.preventDefault();
     if (!held.has(e.code)) {
       pressed.add(e.code);
@@ -99,6 +127,24 @@ function padInput(p: Gamepad): TruckInput {
 const active = (i: TruckInput) => !!(i.throttle || i.brake || i.steer || i.nitro);
 const IDLE: TruckInput = { throttle: 0, brake: 0, steer: 0, nitro: false };
 
+// ---- Touch ------------------------------------------------------------------------------------------------------
+
+let touch: TruckInput = IDLE;
+
+/** The on-screen controls' input (ui/touch/controls.ts), held until the next call. */
+export function setTouchInput(i: TruckInput | null) {
+  touch = i ?? IDLE;
+}
+
+/** The touch driving input (player 1). */
+export const readTouch = (): TruckInput => touch;
+
+/** Note pad use (switches the input mode away from touch). */
+function sawPad(i: TruckInput) {
+  if (active(i)) setInputMode('pad');
+  return i;
+}
+
 function connectedPads(): Gamepad[] {
   return [...(navigator.getGamepads?.() ?? [])].filter((p): p is Gamepad => !!p && p.connected);
 }
@@ -124,17 +170,20 @@ export function readPlayers(controls: Control[]): TruckInput[] {
   if (controls.length === 1 && controls[0].keys === 'solo' && controls[0].pad === null) return [readInput()];
   const pads = padsFor(controls);
   return controls.map((c, i) => {
+    // Touch drives player 1.
+    if (i === 0 && active(touch)) return touch;
     const pad = pads[i] !== null ? readPad(pads[i]!) : null;
-    if (pad && active(pad)) return pad;
+    if (pad && active(sawPad(pad))) return pad;
     return c.keys ? readKeys(c.keys) : IDLE;
   });
 }
 
 /** One human (standalone scenes, a 1-player season): the first active pad, else arrows or WASD. */
 export function readInput(): TruckInput {
+  if (active(touch)) return touch;
   for (const p of connectedPads()) {
     const input = padInput(p);
-    if (active(input)) return input;
+    if (active(sawPad(input))) return input;
   }
   return readKeys('solo');
 }
@@ -164,9 +213,9 @@ export type MenuKey = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back';
 /**
  * Where a menu press came from: the WASD side of the keyboard ('wasd': W A S D, Left Shift, Space), the arrows side
  * ('arrows': arrows, Enter, Right Ctrl), the rest of the keyboard ('kb': Esc, Backspace, other letters), or a pad
- * ('pad0', 'pad1', …). Tests leave it out.
+ * ('pad0', 'pad1', …), or a tap on the screen ('touch': always player 1). Tests leave it out.
  */
-export type MenuSrc = 'wasd' | 'arrows' | 'kb' | `pad${number}`;
+export type MenuSrc = 'wasd' | 'arrows' | 'kb' | 'touch' | `pad${number}`;
 
 /** One menu press: a navigation key and/or a typed letter (A–Z, for the initials). */
 export interface MenuEvent {
@@ -175,6 +224,28 @@ export interface MenuEvent {
   src?: MenuSrc;
   /** The human this press belongs to (the flow fills it in; tests may set it). undefined = anyone. */
   player?: number;
+  /** A tap: what was tapped (the screen's own id, e.g. a shop tile 'tires', a letter 'up:1'). */
+  tap?: string;
+}
+
+/** Taps waiting for the next drainMenu() (ui/touch/tap.ts). */
+const touchMenu: MenuEvent[] = [];
+
+/**
+ * Take the waiting taps that match (by tap id or key) without draining the keys (a standalone race, where R and
+ * Enter are read with wasPressed). The others stay queued.
+ */
+export function takeTap(match: (e: MenuEvent) => boolean) {
+  const i = touchMenu.findIndex(match);
+  if (i < 0) return false;
+  touchMenu.splice(i, 1);
+  return true;
+}
+
+/** A menu press from a tap (src 'touch'); the flow reads it with the keys and pads on the next frame. */
+export function pushMenu(e: Omit<MenuEvent, 'src'>) {
+  touchMenu.push({ ...e, src: 'touch' });
+  if (touchMenu.length > 32) touchMenu.shift();
 }
 
 const MENU_CODES: Record<string, [MenuKey, MenuSrc]> = {
@@ -199,6 +270,7 @@ const MENU_CODES: Record<string, [MenuKey, MenuSrc]> = {
 export function clearPressed() {
   pressed.clear();
   menuQueue.length = 0;
+  touchMenu.length = 0;
   padMenuHeld.clear();
   for (const p of connectedPads()) for (const [k, held] of padMenuState(p)) if (held) padMenuHeld.add(`${p.index}:${k}`);
 }
@@ -229,10 +301,15 @@ export function drainMenu(): MenuEvent[] {
   }
   menuQueue.length = 0;
   pressed.clear();
+  out.push(...touchMenu);
+  touchMenu.length = 0;
   for (const p of connectedPads()) {
     for (const [k, held] of padMenuState(p)) {
       const id = `${p.index}:${k}`;
-      if (held && !padMenuHeld.has(id)) out.push({ key: k as MenuKey, src: `pad${p.index}` });
+      if (held && !padMenuHeld.has(id)) {
+        out.push({ key: k as MenuKey, src: `pad${p.index}` });
+        setInputMode('pad');
+      }
       if (held) padMenuHeld.add(id);
       else padMenuHeld.delete(id);
     }

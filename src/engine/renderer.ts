@@ -1,5 +1,6 @@
 // three.js renderer, scene and lights. One canvas filling the window; the HUD is a DOM overlay on top.
 import * as THREE from 'three';
+import { qualityProfile } from './quality';
 
 export interface Stage {
   renderer: THREE.WebGLRenderer;
@@ -8,11 +9,13 @@ export interface Stage {
 }
 
 export function createStage(parent: HTMLElement): Stage {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Quality (engine/quality.ts): antialiasing and the shadow filter are fixed here; the pixel ratio can drop later.
+  const q = qualityProfile();
+  const renderer = new THREE.WebGLRenderer({ antialias: q.antialias, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(q.pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = q.shadowType;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   parent.appendChild(renderer.domElement);
   const { scene, sun } = createScene();
@@ -29,7 +32,8 @@ export function createScene(): { scene: THREE.Scene; sun: THREE.DirectionalLight
   const sun = new THREE.DirectionalLight('#fff0d0', 2.6);
   sun.position.set(-60, 42, -25);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  const map = qualityProfile().shadowMap;
+  sun.shadow.mapSize.set(map, map);
   const s = sun.shadow.camera;
   s.left = -70;
   s.right = 70;

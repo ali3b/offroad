@@ -34,6 +34,8 @@ const CSS = `
 .or-shop .tile.start { grid-template-columns: 1fr; background: #3a2a1c; }
 .or-shop .tile.start .hd { justify-content: center; text-align: center; line-height: 1.4; }
 .or-shop .tile.start canvas { width: 100%; height: 100%; min-height: 0; object-fit: contain; image-rendering: pixelated; }
+.or-shop .tile.start .map { min-height: 0; overflow: hidden; display: flex; justify-content: center; }
+.or-shop .tile.start .map canvas { max-height: 100%; width: auto; max-width: 100%; }
 .or-shop .tile.start .nm { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 8px; }
 .or-shop .msg { height: 14px; font-size: 10px; color: #fff; text-shadow: 2px 2px 0 #000; }
 .or-shop .msg.bad { color: #ffe14a; }
@@ -45,6 +47,29 @@ const CSS = `
 .or-shop .boss { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; gap: 14px; justify-content: center; align-items: center;
   font-size: 9px; color: #c9ccd2; }
 .or-shop .boss .lv { flex-direction: row; } .or-shop .boss .lv i { width: 8px; height: 8px; }
+.or-shop .quit { position: absolute; z-index: 2; right: calc(env(safe-area-inset-right) + 10px); top: 20px; min-height: 44px; padding: 0 12px;
+  display: flex; align-items: center; font-size: 9px; background: #6b1a14; border: 3px solid #000;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.25), 3px 3px 0 rgba(0,0,0,.45); }
+.or-shop .tile:active { filter: brightness(1.25); }
+@media (max-height: 560px) {
+  .or-shop .panels { padding-bottom: 20px; }
+  .or-shop .panel.me { padding: 6px; gap: 5px; }
+  .or-shop .money { gap: 6px; }
+  .or-shop .money div { font-size: 7px; gap: 2px; flex-direction: row; justify-content: center; }
+  .or-shop .money b { font-size: 11px; padding: 4px 6px; border-width: 2px; }
+  .or-shop .tiles { gap: 5px; }
+  .or-shop .tile { padding: 3px 4px; gap: 2px; border-width: 2px; }
+  .or-shop .tile .hd { font-size: 7px; }
+  .or-shop .tile .lv i { width: 11px; height: 7px; }
+  .or-shop .tile .count { font-size: 8px; left: 5px; bottom: 3px; }
+  .or-shop .tile.start .nm { font-size: 6px; }
+  .or-shop .msg { height: 9px; font-size: 7px; }
+  .or-shop .panel .truck-ico { width: 78px; height: 42px; }
+  .or-shop .panel .trophy { display: none; }
+  .or-shop .panel.cpu .who, .or-shop .panel.other .who { font-size: 9px; }
+  .or-shop .boss { bottom: 4px; font-size: 7px; }
+  .or-shop .quit { top: 2px; min-height: 38px; font-size: 7px; }
+}
 `;
 
 const TILES: ShopItem[] = ['nitro', 'accel', 'tires', 'top', 'shocks'];
@@ -115,11 +140,11 @@ export class ShopScreen implements Screen {
         it === 'nitro'
           ? `<span class="gauge"><i style="height:${Math.round((Math.min(me.nitros, 50) / 50) * 100)}%"></i></span>`
           : levelBar(me.levels[it], MAX_LEVEL);
-      return `<div class="tile${i === this.cursor ? ' sel' : ''}${max ? ' maxed' : ''}" data-item="${it}">
+      return `<div class="tile${i === this.cursor ? ' sel' : ''}${max ? ' maxed' : ''}" data-item="${it}" data-tap="shop:${it}">
         <div class="hd"><span>${LABEL[it]}</span><span>${max ? 'MAX' : priceLabel(PRICES[it])}</span></div>${ICON[it]}${side}
         ${it === 'nitro' ? `<span class="count">${me.nitros}</span>` : ''}</div>`;
     }).join('');
-    const start = `<div class="tile start${this.cursor === 5 ? ' sel' : ''}" data-item="start"><div class="hd">START NEXT<br>RACE</div><div class="map"></div>
+    const start = `<div class="tile start${this.cursor === 5 ? ' sel' : ''}" data-item="start" data-tap="shop:start"><div class="hd">START NEXT<br>RACE</div><div class="map"></div>
       <div class="nm">${esc(this.o.next.name.toUpperCase())}</div></div>`;
     const panels = PLAYER_COLOURS.map((c) => {
       if (c === me.colour)
@@ -136,13 +161,25 @@ export class ShopScreen implements Screen {
     const bossLine = boss
       ? `<div class="boss">${CPU_DRIVERS.grey.nick} (GREY): ${(['accel', 'tires', 'top', 'shocks'] as Upgrade[]).map((u) => `${SHORT[u]} ${levelBar(boss.levels[u])}`).join(' ')}</div>`
       : '';
-    this.el.innerHTML = `${banner(`SPEED <i>SHOP</i>`)}<div class="panels">${panels}</div>${bossLine}`;
+    const quit = `<div class="quit touch-only" data-tap="shop:quit">${this.quitArmed ? 'TAP AGAIN TO QUIT' : 'SAVE + QUIT'}</div>`;
+    this.el.innerHTML = `${banner(`SPEED <i>SHOP</i>`)}${quit}<div class="panels">${panels}</div>${bossLine}`;
     this.el.querySelector('.tile.start .map')?.appendChild(this.thumb);
   }
 
   input(e: MenuEvent) {
     // Only the shopping player's keys / pad (undefined = anyone: one human, Esc, tests).
     if (e.player !== undefined && e.player !== this.turn) return;
+    // A tap on a tile buys it (or starts the race); SAVE + QUIT is Esc.
+    if (e.tap?.startsWith('shop:')) {
+      const id = e.tap.slice(5);
+      if (id === 'quit') e = { ...e, key: 'back' };
+      else {
+        const i = id === 'start' ? 5 : TILES.indexOf(id as ShopItem);
+        if (i < 0) return;
+        this.cursor = i;
+        e = { ...e, key: 'confirm' };
+      }
+    }
     if (e.key !== 'back') this.quitArmed = false;
     const col = this.cursor % 2;
     const row = Math.floor(this.cursor / 2);
@@ -177,7 +214,7 @@ export class ShopScreen implements Screen {
       case 'back':
         if (this.quitArmed) return this.o.onQuit();
         this.quitArmed = true;
-        this.flash('ESC / (B) AGAIN: SAVE + QUIT', true);
+        this.flash(e.src === 'touch' ? 'TAP AGAIN: SAVE + QUIT' : 'ESC / (B) AGAIN: SAVE + QUIT', true);
         break;
     }
     this.draw();
@@ -191,6 +228,8 @@ export class ShopScreen implements Screen {
         this.quitArmed = false;
         const m = this.el.querySelector('.msg');
         if (m) m.textContent = '';
+        const q = this.el.querySelector('.quit');
+        if (q) q.textContent = 'SAVE + QUIT';
       }
     }
   }

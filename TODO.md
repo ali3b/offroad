@@ -86,6 +86,23 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
 - [x] A CRT / pixel option for the DOS look: F2 or the title menu (200 lines, 256/16 colours, scanlines), saved in
       `or.settings`; a full settings screen (volumes) is still open
 
+## Mobile · phones and tablets
+- [x] Touch race controls (touch mode only): a slide pad for analog steering (left thumb), GAS / BRAKE / NITRO
+      (right thumb; nitro also gives gas), multi-touch, ≥ 64 px chunky pixel buttons in the safe areas; the camera
+      keeps the track and HUD panel clear of them (side columns on a phone, a bottom strip on a tablet); touch drives
+      player 1 (`engine/input.ts` setTouchInput, `ui/touch/controls.ts`); a key or pad hides them
+- [x] Every screen by touch alone: title (tap to start, setting chips, fullscreen), hints (NEXT / BACK), sign-up
+      (tap a truck to join, ▲ / ▼ letter picker, colour arrows, READY, START), Speed Shop (tap-buy, START NEXT RACE,
+      SAVE + QUIT), results, continue, game over; the II pause (RESUME / SOUND / QUIT) also on Esc / P
+- [x] Mobile page: landscape with a rotate card (a race pauses), viewport-fit / no zoom / no scroll or
+      pull-to-refresh, apple-mobile-web-app-capable + theme colour, a PWA manifest + our pixel icon, audio unlock on
+      touchend / click, haptics on nitro and crashes (VIBRATE setting)
+- [x] Quality auto / low / high (pixel ratio, antialiasing, shadow map, particles, skinned fans); auto = low on a
+      phone or under 40 fps for 3 s
+- [x] `scripts/mobile-check.mjs` (iPhone 13 landscape, Pixel 7 landscape, iPad 1180×820; the whole season flow by
+      touch, real multi-touch in the race, portrait); README "Mobile", DESIGN "Touch and mobile"
+- [ ] Try it on real devices (iOS Safari home-screen app, Android Chrome install) and tune the steer lock / sizes
+
 ## OR5 · Polish and story
 - [x] Stadium from the bought packs (Pro Racer, Arid Desert, Emotes and Taunts, Mixamo uploads): grandstands + VIP box
       along the back and bleachers down the sides with ~320 seated fans (`Crowd_Sit_*`) who jump up to cheer

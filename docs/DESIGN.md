@@ -19,10 +19,12 @@ src/
     *.test.ts        vitest unit tests (npm test)
   engine/
     renderer.ts      WebGLRenderer (sRGB, PCF soft shadows), scene, hemisphere + low sun
-    camera.ts        the fixed whole-track camera (CAMERA: pitch, fov, margins) and fitFixedCamera()
+    camera.ts        the fixed whole-track camera (CAMERA: pitch, fov, margins) and fitFixedCamera() (into a free rect)
     loop.ts          fixed 60 Hz physics step with an accumulator (max 6 steps/frame), render per rAF, advance()
     input.ts         keyboard + Gamepad API → TruckInput: readInput() (one player), readPlayers(controls) (the keyboard
-                     split + pads per player, KEY_SCHEMES), menu presses with their source (drainMenu)
+                     split + pads per player, KEY_SCHEMES), menu presses with their source (drainMenu); the touch
+                     input (player 1), menu taps (pushMenu, src 'touch') and the input mode (touch / keys / pad)
+    quality.ts       render quality auto / low / high: pixel ratio, antialiasing, shadow map, particles, skinned fans
     retro.ts         the DOS look (F2): low-res render target, palette + dither, scanlines; or.settings
   physics/
     world.ts         RAPIER.init(), World (gravity -14), PHYSICS_DT, collision GROUPs
@@ -63,6 +65,8 @@ src/
     podium-view.ts   the results screen's 3D podium: its own small canvas, the podium model, drivers, trucks, trophy,
                      confetti
     toast.ts         a short message at the top (F2's DOS look setting)
+    touch/           phones and tablets: mobile.ts (body classes, taps → menu presses, no zoom / scroll, the rotate
+                     card, fullscreen, haptics), controls.ts (the on-screen race controls), pause.ts (II + PAUSED)
     debug.ts         F3 overlay
     screens/         full-screen menus: common (DOS look, panels, icons), title, hints, register (+ get ready),
                      shop, continue (+ game over), track-thumb (a 2D map of a track from its JSON)
@@ -95,7 +99,9 @@ The original shows a whole track on one screen from a high 3/4 view with almost 
 perspective camera with a narrow vertical FOV (18°) pitched 58° below the horizon, looking north (-z), placed by
 `fitFixedCamera()`: a binary search on the distance until the track's wall bounds (plus the HUD anchors) fit the
 window with small margins, then the aim is nudged so the box is centred. It re-fits on resize. The camera never
-moves during a race. The original's view is about 60–65° down with mild perspective (research notes), so 58° with
+moves during a race. With the touch controls up, `RaceScene.resize(reserve)` fits it twice, once keeping the side
+columns clear (steer pad left, pedals right) and once a bottom strip, and keeps the bigger track (sides on a ~2:1
+phone, the bottom strip on a tablet). The original's view is about 60–65° down with mild perspective (research notes), so 58° with
 an 18° FOV is close; the arena fills the width of a 16:9 window like the original fills its 4:3 one.
 
 ### Track data → world
@@ -294,7 +300,9 @@ GO!, "1ST PLACE!") and floating pickup texts in the same pixel font (Press Start
 airTime, nitros, inWater, surface, slip, resets), `raceState()` (phase, clock, per-truck lap / next gate / place /
 lap times / nitros / bags / progress / human, results, record, pickups), `autopilot(on)`, `restart()`,
 `resultsVisible()`, `setInput(partial | null, player = 0)`, `controls()` (each human's keys, joined pad, lent pad), `reset()`, `place(x, z, heading)`, `advance(s)`, `debug(on)`,
-`groundCheck()`, `heightAt(x, z)`, `line()`, `mods()` (each truck's upgrade multipliers), plus `tuning`, `camera`,
+`groundCheck()`, `heightAt(x, z)`, `line()`, `mods()` (each truck's upgrade multipliers), `quality(o?)` (setting,
+level, reason, profile; `{ watchFps: true }` turns on the fps watch that headless runs skip), `touch()` (controls
+visible, the input they send, what they reserve, the camera fit, paused), plus `tuning`, `camera`,
 `loop`, `session`, `race`, `events`, `models`, `THREE` and `RAPIER` for live tuning. `session` / `race` follow the
 current scene (null on a menu screen). `flow`: `state()` (screen, race index, next race, player 1 and `players[]` cash / credits /
 levels / nitros / keys, `cpus[]`, last outcome, shop cursor and turn, the sign-up cards, the continue countdowns),
@@ -321,6 +329,15 @@ levels / nitros / keys, `cpus[]`, last outcome, shop cursor and turn, the sign-u
   upgrades and per-human truck mods next race; forced finishes: one human loses a credit, a human ahead costs none;
   player 2 out → CONTINUE? for them alone → gives up → blue races as a CPU truck with their upgrades, player 1 gets the
   whole keyboard; player 1 out → countdown → GAME OVER. `test-results/twoplayer-*.png`.
+- `scripts/mobile-check.mjs <url> [--device=iphone|pixel|ipad]`: phones and a tablet (Playwright device emulation:
+  844×390 iPhone 13 landscape, Pixel 7 landscape, 1180×820 iPad; hasTouch + isMobile) driven by touch alone: touch
+  mode on boot, meta tags, manifest + icons, auto quality (low on the phones, high on the iPad, then low after 3 s
+  under 40 fps), the title chips (DOS look on and off), NEW SEASON, the hints' NEXT, the sign-up (tap a panel to
+  join, the letter picker to BOB, the colour arrow, READY, START), the race (controls visible and ≥ 64 px, on
+  screen, off the HUD panel, the track's walls clear of them; real multi-touch through CDP: gas alone drives, gas +
+  a slide on the pad turns right, a third finger fires a nitro and buzzes, all up = idle, BRAKE), II / RESUME, a key
+  hides the controls and a touch brings them back, autopilot to the results, a tap → the shop, tap-buy NITRO and
+  TIRES, START NEXT RACE → race 2, portrait → the rotate card and a pause. `test-results/mobile-<device>-*.png`.
 - `npm test`: vitest unit tests of the rotation (the 8-track table, track 8 at race 35, fewer tracks), the shop,
   credits, continue, CPU shopping and `settleRace`; `multiplayer.test.ts`: 2–3 humans (line-up, keyboard split,
   separate banking, credits per human, upgrades per human), `dropToCpu`, the v1 → v2 save migration, pad lending.
@@ -430,7 +447,9 @@ tracks lane) when it exists; until then every registered track with a racing lin
 which then alternates forward / reversed). A track without a `reverse` variant is driven forwards.
 
 ### Save (`localStorage`)
-- `or.settings`: `{ dos: boolean, palette: 256 | 16 | 0 }`, the DOS look (engine/retro.ts); default off.
+- `or.settings`: `{ dos: boolean, palette: 256 | 16 | 0, quality: 'auto' | 'low' | 'high', haptics: boolean }`, the
+  DOS look (engine/retro.ts; default off), the render quality (engine/quality.ts; default auto) and vibration
+  (default on).
 - `or.season`: `{ v: 2, race, players: [{ initials, colour, keys, cash, credits, levels, nitros }], cpus: [{ colour,
   cash, levels, nitros }], last: { track, outcomes (per player), places (per slot) } }`, written after every race,
   purchase, continue and drop-out; deleted on game over. `keys` is the player's keyboard side ('solo' alone, 'wasd',
@@ -677,3 +696,66 @@ full-screen quad samples it with nearest filtering, converts to sRGB, quantises 
 4×4 Bayer dither; 16: the nearest EGA colour, luma-weighted, with a lighter dither), darkens the lower third of each
 low-res row as a scanline and adds a slight vignette. The DOM HUD stays sharp, like the original's text. The podium
 canvas follows the setting at a third of its resolution with `image-rendering: pixelated`.
+
+### Touch and mobile (`ui/touch/`, `engine/input.ts`, `engine/quality.ts`)
+Phones and tablets play in landscape with touch alone.
+
+**Input mode.** `engine/input.ts` keeps the device used last: `touch` (a finger on the screen; a coarse-pointer
+device starts in it), `keys` (any key but F-keys, M and lone modifiers) or `pad` (a pad press or stick). `ui/touch/
+mobile.ts` mirrors it as `body.or-touch` (and `or-touchcap` on any touch screen): every screen carries both prompts,
+`.kb-only` ("PRESS START") and `.touch-only` ("TAP TO START", on-screen buttons), and CSS shows one set.
+
+**Race controls** (`ui/touch/controls.ts`, shown in a race in touch mode). Two invisible halves take the pointers
+(Pointer Events, `touch-action: none`, pointer capture, every pointer tracked, so steer + gas + nitro work at once):
+- left: a slide pad drawn bottom-left; steer = finger offset / 46 px (× the size unit) with a 5 px dead zone, from
+  the pad's centre when the finger lands on it (an end = full lock, like a ◀ / ▶ button), else from where it landed
+  (a floating pad, marked by a small square).
+- right: GAS, BRAKE / REVERSE and NITRO; a finger is on whichever it's over as it slides; anywhere else on the right
+  half is GAS. NITRO also gives gas (the thumb rolls onto it); BRAKE wins over gas.
+- the result goes to `setTouchInput()`: `readInput()` and `readPlayers()` give it to player 1 while it's active.
+- sizes scale with `--u` = 100vmin / 390 (1–1.45 px): pedals 88 × 64–136, the pad 156 × 84, all ≥ 64 CSS px, inside
+  `env(safe-area-inset-*)`. Wide phones (> 1.9:1) stack the pedals in a column (NITRO, GAS, BRAKE); tablets and 16:9
+  screens put them in a low block (GAS tall on the right, NITRO over BRAKE). `reserve()` reports what they cover and
+  the camera fits around it (Camera above); the HUD panel and track name follow the camera, and the name slides off
+  the panel when they'd overlap.
+
+**Menus by touch.** Elements with `data-tap="<id>"` (and an optional `data-key`) turn a click into a menu press
+(`pushMenu({ key, tap })`, src `touch`); `data-repeat` ones fire on press and repeat while held (the initials'
+arrows). The flow drains them with the keys and pads, so taps follow the same routing (a tap is player 1's: `Flow.
+ownerOf`). Title: tap anywhere = the first item (CONTINUE SEASON or NEW SEASON), the season items and a row of
+setting chips (DOS LOOK, QUALITY, SOUND, VIBRATE on touch screens with `navigator.vibrate`), a fullscreen button
+(called inside the click: a user gesture; then `screen.orientation.lock('landscape')` where allowed). Hints: tap =
+NEXT, BACK. Sign-up: tap an open panel = join on that colour (only as player 1: touch never joins after a keyboard
+or pad player), ▲ / ▼ above and below each letter (a tap on a letter selects it), OK, ◀ ▶ or a tap on a free panel
+for the colour, READY, START; BACK. Shop: a tile buys (START NEXT RACE starts), SAVE + QUIT twice. Results: a tap
+anywhere. Continue: CONTINUE / GIVE UP. Game over: a tap. A standalone race's results restart on a tap.
+
+**Pause** (`ui/touch/pause.ts`): the II button top-left (touch mode), or Esc / P in a race; PAUSED with RESUME,
+SOUND on/off and QUIT TO TITLE (the season stays saved at the shop before the race; a standalone race has RESTART).
+The flow stops stepping physics and suspends the AudioContext. A race also pauses when the page is hidden or the
+device turns to portrait.
+
+**Page.** `index.html`: `viewport-fit=cover, user-scalable=no`, `theme-color`, `apple-mobile-web-app-capable`,
+the manifest (`public/manifest.webmanifest`: fullscreen, landscape, our pixel icon in `public/icons/`, drawn as a
+32×32 SVG and rendered to PNGs by `scripts/make-icons.mjs`). `html, body` have `touch-action: none` and
+`overscroll-behavior: none`; `touchmove` is cancelled outside `[data-scroll]` (the hints), and iOS gesture events
+and double taps are cancelled, so nothing scrolls, zooms or pulls to refresh. A "rotate your device" card covers
+the page on a touch screen in portrait. Audio unlocks on `pointerdown`, `touchend` or `click` (iOS needs the last
+two). Haptics: `navigator.vibrate` on a human truck's nitro (35 ms) and on hard hits (strength ≥ 0.45; a double
+buzz above 0.8), in touch mode with the VIBRATE setting on.
+
+**Quality** (`engine/quality.ts`, setting `or.settings.quality`, the title chip, `?quality=`):
+
+| | high | low |
+|---|---|---|
+| Pixel ratio | device, at most 2 | 1 |
+| Antialiasing | on | off (fixed when the renderer is made) |
+| Sun shadow map | 2048, PCF soft | 1024, PCF |
+| Particles | 1200 | 500 |
+| Crowd | baked fans + 6 skinned, animated fans | baked fans only |
+
+Auto starts low on a touch screen whose short side is under 500 px (a phone) and high elsewhere, then drops to low
+for the page after a race (or the title's demo race) runs under 40 fps for 3 s (a toast says so). A drop changes
+the pixel ratio, the current sun's shadow map and the skinned fans at once; particles follow from the next scene.
+Headless browsers (`navigator.webdriver`) skip the fps watch so the checks' screenshots stay comparable; the mobile
+check turns it on for the iPad.
