@@ -27,6 +27,9 @@ import { GetReadyScreen, RegisterScreen } from '../ui/screens/register';
 import { ShopScreen } from '../ui/screens/shop';
 import { ContinueScreen, GameOverScreen } from '../ui/screens/continue';
 import { money } from './economy';
+import { ResultsScreen } from '../ui/results';
+import { podiumView } from '../ui/podium-view';
+import { PRIZES, ROSTER } from '../race/roster';
 
 export type FlowState = ScreenName | 'standalone' | 'loading';
 
@@ -284,6 +287,21 @@ export class Flow {
     this.toShop();
   }
 
+  /** ?scene=podium (screenshots): the results screen with made-up results, no race behind it. */
+  async podiumScene() {
+    const order = (this.params.get('order') ?? '2,0,1,3').split(',').map(Number);
+    const results = order.map((slot, i) => {
+      const laps = [16.4, 15.9, 16.1, 16.0].map((t) => t + i * 0.4 + slot * 0.05);
+      const time = laps.reduce((a, b) => a + b, 0);
+      return { slot, place: i + 1, time, prize: PRIZES[i], bags: i === 0 ? 12_000 : 0, lapTimes: laps, best: Math.min(...laps), avg: time / 4 };
+    });
+    results.sort((a, b) => a.slot - b.slot);
+    const screen = new ResultsScreen(document.body);
+    screen.show({ track: 'Rattlesnake Run', results, entries: ROSTER, record: { time: 63.2, who: 'STEEL' }, newRecord: false, cash: 102_000 });
+    this.setScreen('results', null);
+    await podiumView().ready;
+  }
+
   // ---- loop hooks ----------------------------------------------------------------------------------------------
 
   private step(dt: number) {
@@ -331,7 +349,7 @@ export class Flow {
   /** One menu press (keyboard/pad, or a test). */
   press(e: MenuEvent) {
     if (this.state === 'results') {
-      if (e.key !== 'confirm') return;
+      if (e.key !== 'confirm' || !this.season) return;
       const o = this.season?.last?.outcomes[0];
       if (o?.out) this.toContinue();
       else this.toShop();
@@ -368,6 +386,8 @@ export class Flow {
       autopilot: (on = true) => scene().race && (scene().race!.autopilot = on),
       restart: () => scene().restart(),
       resultsVisible: () => !!this.race?.results.visible,
+      /** The results screen's 3D podium (ui/podium-view.ts): stop(), tick(dt), info. */
+      podium: () => podiumView(),
       setInput: (i: Partial<TruckInput> | null) => (this.override = i ? { ...NO_INPUT, ...i } : null),
       reset: () => scene().session.reset(),
       place: (x: number, z: number, heading = 0, lift = 1.4) => {

@@ -3,6 +3,7 @@
 //   ?scene=shop               straight into the Speed Shop (the saved season, or a fresh one: &cash= &race= &colour=)
 //   ?scene=race&track=<id>    a standalone 4-truck race (default `rattlesnake`); &reverse, &cpus=0..3, &autopilot
 //   ?scene=test               the player's truck alone on a track (default track `test`)
+//   ?scene=podium             the results screen's 3D podium with made-up results (&order=2,0,1,3: slots by place)
 //   ?scene=audio              the sound bench;  &debug = the F3 overlay
 // window.__or is the test/tool handle (scripts/load-check.mjs, drive-check.mjs, race-check.mjs, season-check.mjs).
 import { createStage } from './engine/renderer';
@@ -14,8 +15,9 @@ import { loadTruckModels } from './race/models';
 import { getAudio } from './audio';
 import { bridgeAudio } from './audio/bridge';
 import { Flow } from './game/flow';
+import { preloadPodium } from './ui/podium-view';
 
-const SCENES = ['title', 'shop', 'race', 'test', 'audio'] as const;
+const SCENES = ['title', 'shop', 'race', 'test', 'audio', 'podium'] as const;
 
 declare global {
   interface Window {
@@ -46,9 +48,11 @@ async function boot() {
 
   if (sceneName === 'race' || sceneName === 'test') await flow.standalone(sceneName);
   else if (sceneName === 'shop') flow.openShop();
+  else if (sceneName === 'podium') await flow.podiumScene();
   else await flow.toTitle();
   flow.resize();
   flow.loop.start();
+  if (sceneName !== 'podium') preloadPodium();
   window.__or.ready = true;
 }
 

@@ -23,6 +23,10 @@ export interface ModelManifest {
   bounds: { min: number[]; max: number[]; size: number[] };
   wheels?: Partial<Record<'fl' | 'fr' | 'rl' | 'rr', WheelInfo>>;
   collider?: { box: { center: number[]; size: number[] } };
+  /** Characters: the merged clips (loop = the clip is authored as a loop) and named attachment points. */
+  clips?: { name: string; duration: number; loop: boolean; speedMps?: number }[];
+  sockets?: { name: string; node: string; pos: [number, number, number]; rot: [number, number, number, number] }[];
+  scale?: { modelScale: number; fit?: Record<string, number> };
   warnings?: string[];
 }
 
@@ -33,6 +37,9 @@ interface ModelIndex {
 const BASE = `${import.meta.env.BASE_URL}models/`;
 let indexP: Promise<ModelIndex | null> | null = null;
 const glbs = new Map<string, Promise<LoadedModel | null>>();
+
+/** True when the game was started with generator models (public/models/models.json existed). */
+export const hasModels = () => typeof __HAS_MODELS__ !== 'undefined' && __HAS_MODELS__;
 
 /** public/models/models.json, fetched once; null when the game was started without models. */
 export function modelIndex(): Promise<ModelIndex | null> {
@@ -57,7 +64,7 @@ export function loadModel(name: string): Promise<LoadedModel | null> {
           o.receiveShadow = true;
         }
       });
-      return { scene: gltf.scene, manifest: entry.data };
+      return { scene: gltf.scene, clips: gltf.animations, manifest: entry.data };
     });
     glbs.set(name, p);
   }
@@ -66,6 +73,8 @@ export function loadModel(name: string): Promise<LoadedModel | null> {
 
 export interface LoadedModel {
   scene: THREE.Object3D;
+  /** The GLB's animation clips (characters), by the names in manifest.clips. */
+  clips: THREE.AnimationClip[];
   manifest: ModelManifest;
 }
 

@@ -3,10 +3,12 @@
 import { addStyle, PIXEL_FONT } from './pixel';
 import type { RaceRecord, RacerResult } from '../race/race';
 import type { Entry } from '../race/roster';
+import { hasModels } from '../race/models';
+import { podiumView } from './podium-view';
 
 const CSS = `
 .or-results { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 18px; font-family: ${PIXEL_FONT}; color: #fff; text-shadow: 2px 2px 0 #000;
+  justify-content: center; gap: 12px; font-family: ${PIXEL_FONT}; color: #fff; text-shadow: 2px 2px 0 #000;
   background:
     repeating-conic-gradient(#14204a 0 25%, #1b2a5c 0 50%) 0 0 / 48px 48px;
   animation: or-fade .35s ease-out; }
@@ -16,6 +18,8 @@ const CSS = `
   text-align: center; box-shadow: 4px 4px 0 rgba(0,0,0,.5); }
 .or-results .times .rec { color: #7fe3ff; }
 .or-results .times .new { color: #5cff6a; }
+.or-results .podium3d { width: 922px; height: 300px; margin: -4px 0 -8px; }
+.or-results .podium3d canvas { display: block; width: 100%; height: 100%; }
 .or-results .podium, .or-results .plates { display: flex; align-items: flex-end; gap: 14px; }
 .or-results .plates { align-items: stretch; margin-top: -10px; }
 .or-results .col { display: flex; flex-direction: column; align-items: center; width: 220px; }
@@ -41,7 +45,8 @@ const CSS = `
 .or-results .note.lost { color: #ff5a4a; }
 .or-results .again { font-size: 12px; color: #fff; animation: or-blink 1s steps(2) infinite; }
 @keyframes or-blink { 50% { opacity: .25; } }
-@media (max-width: 960px) { .or-results .col, .or-results .plate { width: 22vw; } .or-results .plate { font-size: 8px; } .or-results .title { font-size: 18px; } }
+@media (max-width: 960px) { .or-results .podium3d { width: calc(88vw + 42px); height: 28vw; }
+  .or-results .col, .or-results .plate { width: 22vw; } .or-results .plate { font-size: 8px; } .or-results .title { font-size: 18px; } }
 `;
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th'];
@@ -95,20 +100,28 @@ export class ResultsScreen {
             <div class="dim">Avg: ${secs(r.avg)}</div><div class="dim">Best: ${secs(r.best)}</div></div>`;
       })
       .join('');
+    // With the generator's characters the podium is a little 3D scene (ui/podium-view.ts); else flat drivers.
+    const in3d = hasModels();
     const rec = o.record ? `Record (${o.record.who}): ${o.record.time.toFixed(2)}` : 'Record: --.--';
     const me_ = o.entries[0];
     const you = me_?.human ? me_.nick : 'YOU';
     this.el.innerHTML = `<div class="title">${o.track.toUpperCase()}</div>
       <div class="times">${you} Finish Time: ${secs(me.time)}<br><span class="${o.newRecord ? 'new' : 'rec'}">${rec}${o.newRecord ? ' NEW!' : ''}</span></div>
-      <div class="podium">${cols}</div>
+      ${in3d ? '<div class="podium3d"></div>' : `<div class="podium">${cols}</div>`}
       <div class="plates">${plates}</div>
       ${o.note ? `<div class="note ${o.note.kind}">${o.note.text}</div>` : ''}
       <div class="cash">You won ${money(me.prize + me.bags)} &nbsp; Cash ${money(o.cash)}${o.credits !== undefined ? ` &nbsp; Credits ${o.credits}` : ''}</div>
       <div class="again">${o.prompt ?? 'PRESS ENTER OR (A) TO RACE AGAIN'}</div>`;
     this.parent.appendChild(this.el);
+    if (in3d)
+      podiumView().show(
+        this.el.querySelector<HTMLElement>('.podium3d')!,
+        byPlace.map((r) => ({ place: r.place, colour: o.entries[r.slot].colour, hex: o.entries[r.slot].hex })),
+      );
   }
 
   hide() {
+    if (this.el.isConnected && this.el.querySelector('.podium3d')) podiumView().hide();
     this.el.remove();
   }
 

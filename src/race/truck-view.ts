@@ -32,6 +32,8 @@ const _steer = new THREE.Quaternion();
 const UP = new THREE.Vector3(0, 1, 0);
 
 export class TruckView {
+  /** Height of the root above flat ground for a parked model truck (wheels on the ground, springs at rest). */
+  static readonly groundLift = -(TUNING.wheel.y - SAG_LENGTH - TUNING.wheel.radius);
   readonly root = new THREE.Group();
   private wheels: THREE.Object3D[] = [];
   private spin: THREE.Object3D[] = [];
