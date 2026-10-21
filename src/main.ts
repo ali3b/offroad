@@ -18,9 +18,12 @@ import { RaceHud } from './ui/race-hud';
 import { ResultsScreen } from './ui/results';
 import { DebugOverlay } from './ui/debug';
 import { getTrack } from './track/tracks';
+// Audio: synthesised music + SFX (src/audio), fed from the race events by bridgeAudio; M mutes.
+import { getAudio } from './audio';
+import { bridgeAudio } from './audio/bridge';
 
-/** Scenes: `test` drives the player's truck alone; `race` runs a full 4-truck race. */
-const SCENES = ['test', 'race'] as const;
+/** Scenes: `test` drives the player's truck alone; `race` runs a full 4-truck race; `audio` is the sound bench. */
+const SCENES = ['test', 'race', 'audio'] as const;
 
 declare global {
   interface Window {
@@ -36,6 +39,12 @@ async function boot() {
   const sceneName = params.get('scene') ?? 'test';
   window.__or = { ready: false, scene: sceneName };
   if (!(SCENES as readonly string[]).includes(sceneName)) throw new Error(`unknown scene "${sceneName}" (have: ${SCENES.join(', ')})`);
+  if (sceneName === 'audio') {
+    const { startAudioScene } = await import('./audio/dev-scene');
+    startAudioScene(document.body);
+    window.__or.ready = true;
+    return;
+  }
   const isRace = sceneName === 'race';
   const reversed = params.has('reverse') && params.get('reverse') !== '0';
   const data = getTrack(params.get('track') ?? (isRace ? 'rattlesnake' : 'test'), reversed);
@@ -65,6 +74,12 @@ async function boot() {
   };
   frame();
   window.addEventListener('resize', frame);
+
+  const _p = new THREE.Vector3();
+  bridgeAudio(events, (i) => {
+    const pos = session.racers[i]?.truck.state().pos;
+    return pos ? Math.max(-1, Math.min(1, _p.set(pos.x, pos.y, pos.z).project(camera).x)) : 0;
+  });
 
   initKeyboard();
   const debug = new DebugOverlay(document.body);
@@ -158,6 +173,7 @@ async function boot() {
     debug: (on?: boolean) => debug.toggle(on),
     groundCheck,
     heightAt: (x: number, z: number) => session.track.heightAt(x, z),
+    audio: getAudio(),
     line: () => session.track.line && { length: session.track.line.length, points: session.track.line.samples(2) },
   });
   // A live getter (Object.assign would copy the value once).
