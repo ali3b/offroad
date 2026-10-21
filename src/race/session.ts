@@ -4,6 +4,7 @@
 import type * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { buildTrack, type Track } from '../track/build';
+import { dressTrack } from '../track/props-view';
 import { polygonDistance } from '../track/heights';
 import type { TrackData } from '../track/types';
 import { Truck, TUNING, type TruckInput } from '../physics/vehicle';
@@ -44,6 +45,7 @@ export class Session {
     opts: { trucks?: number; nitros?: number[]; models?: TruckModels | null } = {},
   ) {
     this.track = buildTrack(data, world);
+    void dressTrack(this.track);
     scene.add(this.track.group, this.skids.mesh, this.particles.mesh);
     for (const w of this.track.walls) this.wallHandles.add(w.handle);
     const n = Math.min(opts.trucks ?? 1, data.start.grid.length, ROSTER.length);
