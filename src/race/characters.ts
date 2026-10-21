@@ -1,6 +1,6 @@
 // Synty characters from the generator (ssg.models.json `driver_<colour>`, `fan_*`, `crowd_*`). `Character` is one
 // animated copy of a skinned export (its own skeleton and AnimationMixer). Crowds use `crowd_*`: exports with baked
-// static poses (`poses`: idle and two cheer frames), plain meshes ready for an InstancedMesh.
+// static poses (`poses`: seated, seated cheers, standing cheers), plain meshes ready for an InstancedMesh.
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadModel, modelIndex, type LoadedModel } from './models';
@@ -8,22 +8,33 @@ import type { Colour } from './roster';
 
 /**
  * The clips the game merges into its character exports (ssg.models.json), by what they are for. The specs qualify
- * them by gender (`POLY_IDL_Base@Feminine`) and the GLB names a clip as asked, so lookups match the base name.
+ * the Synty clips by gender (`POLY_IDL_Base@Feminine`) and the GLB names a clip as asked, so lookups match the base
+ * name. `Crowd_*`, `Driver_*` and `Flagman_*` are Mixamo uploads (the generator's `_Uploads` pack).
  */
 export const CLIPS = {
   idle: 'POLY_IDL_Base',
-  victory: 'MartialArts_Victory',
-  cheer: 'POLY_IDL_Wave_Double_Loop',
-  wave: 'POLY_IDL_Wave_Large_Loop',
-  waveSmall: 'POLY_IDL_Wave_Small_Loop',
-  dejected: 'POLY_IDL_Posture_Slumped_Loop',
+  /** Podium: the winner's celebration (once), then the trophy lift (both arms overhead). */
+  victory: 'POLY_EMOT_Celebrate_BeatChest',
+  trophy: 'Driver_Trophy',
+  clap: 'POLY_EMOT_Celebrate_Clapping_Polite',
+  fist: 'POLY_EMOT_Happy_FistPump',
+  dejected: 'Driver_Defeated',
+  /** Crowd: seated, seated cheer, and standing up with both arms raised. */
+  sit: 'Crowd_Sit_Idle',
+  sitCheer: 'Crowd_Sit_Cheer',
+  armsUp: 'POLY_EMOT_Happy_ArmsRaised',
+  /** The flagman. */
+  flagWave: 'Flagman_Wave',
 } as const;
 
 export const FANS = ['fan_a', 'fan_b', 'fan_c'] as const;
-/** The same three fans as baked static poses (`poses` exports), in FANS order. */
-export const CROWD = ['crowd_a', 'crowd_b', 'crowd_c'] as const;
-/** The pose nodes of a crowd export: standing idle, then two frames of the two-arm wave for the cheer. */
-export const CROWD_POSES = ['idle', 'cheer_a', 'cheer_b'] as const;
+/** Crowd characters as baked static poses (`poses` exports); the first three are FANS' characters, in order. */
+export const CROWD = ['crowd_a', 'crowd_b', 'crowd_c', 'crowd_d', 'crowd_e', 'crowd_f'] as const;
+/**
+ * The pose nodes of a crowd export: seated, two frames of the seated cheer, then standing up: two frames each of
+ * arms raised and a fist pump.
+ */
+export const CROWD_POSES = ['sit', 'sit_cheer_a', 'sit_cheer_b', 'arms_a', 'arms_b', 'fist_a', 'fist_b'] as const;
 export const driverModel = (c: Colour) => `driver_${c}`;
 
 /** One driver or fan with its own skeleton, playing clips by name with a short cross-fade. */

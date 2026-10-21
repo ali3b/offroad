@@ -6,6 +6,7 @@
   "baseNoise": {"amp": 0.12, "freq": 0.12},
   "laps": 4,
   "palette": {"dirt": "#b5683f", "dirtDark": "#76401f", "dirtLight": "#d0875a", "ridge": "#e6ad96", "wallA": "#c42a24", "wallB": "#bdb5e4", "flag": "#2f55d4", "backWall": "#9c97c9", "accent": "#c42a24"},
+  "stadium": {"flora": "scrub", "desert": 0.8, "sand": "#b5683a", "tumbleweeds": 2},
   "features": [
     {"type": "plateau", "points": [[32, -12], [43, -12], [43, 6], [32, 6]], "height": 2, "slope": 4.5},
     {"type": "plateau", "points": [[-3.5, 4], [-1.5, 4], [-1.5, 9], [-3.5, 9]], "height": 1, "slope": 2.2},
@@ -57,6 +58,11 @@
     {"kind": "cone", "x": 44.5, "z": -6},
     {"kind": "cone", "x": 44.5, "z": -2},
     {"kind": "cone", "x": 44.5, "z": 2},
-    {"kind": "hay_bale", "x": -44.5, "z": 2, "rot": 0.2}
+    {"kind": "hay_bale", "x": -44.5, "z": 2, "rot": 0.2},
+    { "kind": "tyre_barrier", "x": 45.2, "z": 1.0, "rot": -1.5708 },
+    { "kind": "pit_wall", "x": 45.6, "z": 6.5, "rot": -1.5708 },
+    { "kind": "pit_box", "x": 48.6, "z": 6.5, "rot": -1.5708 },
+    { "kind": "flags", "x": -45.5, "z": 15.5, "rot": 1.5708 },
+    { "kind": "tyre_barrier", "x": -45.2, "z": 3.0, "rot": 1.5708 }
   ]
 }

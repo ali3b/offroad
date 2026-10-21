@@ -177,9 +177,34 @@ export interface TrackData {
    * so keep them off the racing line, and bunting (a string of pennants between two poles, `len` metres long across `rot`, high
    * over the lane: it marks a jump).
    */
-  props?: { kind: 'tyre_pile' | 'barrel' | 'hay_bale' | 'cone' | 'bunting' | 'drum'; x: number; z: number; rot?: number; len?: number }[];
+  props?: { kind: PropKind; x: number; z: number; rot?: number; len?: number }[];
+  /** The stadium around the arena (track/stadium-view.ts, with models): see StadiumOptions. */
+  stadium?: StadiumOptions;
   /** The track's own colours (CSS colours); anything left out keeps the default sandy arena. */
   palette?: Palette;
+}
+
+/**
+ * Track JSON prop kinds. Inside the walls: tyre piles, barrels, hay bales, cones (drawn, not collided), bunting, drums
+ * (solid). Trackside dressing (usually outside the walls): sponsor tyre barriers, flag clusters, pit walls and pit
+ * boxes, cacti and rocks.
+ */
+export type PropKind = 'tyre_pile' | 'barrel' | 'hay_bale' | 'cone' | 'bunting' | 'drum' | 'tyre_barrier' | 'flags' | 'pit_wall' | 'pit_box' | 'cactus' | 'rock';
+
+/** Per-track stadium dressing (all optional; the defaults give grandstands along the back and a desert outside). */
+export interface StadiumOptions {
+  /** Where along the back (x, m) the VIP box stands in the grandstand row; null for none. Default: the middle. */
+  vip?: number | null;
+  /** Bleachers outside the left and right walls (default true). */
+  sides?: boolean;
+  /** Desert plants and rocks outside the walls: the share of spots filled (0..1, default 0.6). */
+  desert?: number;
+  /** Which plants: 'cactus' (tall saguaros), 'scrub' (low cacti, succulents, dead trees) or 'mixed' (default). */
+  flora?: 'cactus' | 'scrub' | 'mixed';
+  /** Rolling tumbleweeds (default 3). */
+  tumbleweeds?: number;
+  /** Desert ground colour outside the stadium. */
+  sand?: string;
 }
 
 export interface Palette {

@@ -6,6 +6,7 @@
   "baseNoise": {"amp": 0.12, "freq": 0.13},
   "laps": 4,
   "palette": {"dirt": "#bd8442", "dirtDark": "#7d5226", "dirtLight": "#d6a464", "ridge": "#e3b993", "wallA": "#2d64b8", "wallB": "#eeeae0", "flag": "#f0c020", "backWall": "#8fa6c9", "accent": "#d0a020"},
+  "stadium": {"flora": "scrub", "vip": 10, "sand": "#9c6a3c"},
   "features": [
     {"type": "bridge", "x": -5, "z": 9, "heading": 0, "width": 11, "height": 1.6, "ramp": 5, "under": {"heading": 1.5708, "width": 10, "depth": 1.8, "ramp": 7}},
     {"type": "ridge", "points": [[6.35, -25.2], [5.62, -21], [3.67, -15.5], [2.69, -10], [3.67, -4], [5.13, -1]], "width": 5.5, "height": -0.55},
@@ -65,6 +66,11 @@
     {"kind": "cone", "x": 32.5, "z": -2},
     {"kind": "cone", "x": 32.5, "z": 2},
     {"kind": "tyre_pile", "x": -42.5, "z": -12},
-    {"kind": "barrel", "x": 10, "z": 27}
+    {"kind": "barrel", "x": 10, "z": 27},
+    { "kind": "tyre_barrier", "x": 33.2, "z": 4.0, "rot": -1.5708 },
+    { "kind": "pit_wall", "x": 33.6, "z": 9.5, "rot": -1.5708 },
+    { "kind": "pit_box", "x": 36.6, "z": 9.5, "rot": -1.5708 },
+    { "kind": "flags", "x": -43.5, "z": 22.5, "rot": 1.5708 },
+    { "kind": "tyre_barrier", "x": -43.2, "z": 6.0, "rot": 1.5708 }
   ]
 }

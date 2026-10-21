@@ -6,6 +6,7 @@
   "baseNoise": {"amp": 0.12, "freq": 0.12},
   "laps": 4,
   "palette": {"dirt": "#ad6a3c", "dirtDark": "#70421f", "dirtLight": "#c98a58", "ridge": "#e0a58c", "wallA": "#e0b21c", "wallB": "#2b2826", "flag": "#d8301e", "backWall": "#c9b06a", "accent": "#d8a21a"},
+  "stadium": {"flora": "cactus", "vip": 20, "sand": "#a87a3e"},
   "features": [
     {"type": "ridge", "points": [[-30, 7.7], [42, -11.3]], "width": 7.5, "height": 1.25},
     {"type": "ramp", "x": -6.5, "z": 10, "heading": 3.1416, "length": 4.5, "width": 12, "height": 0.75, "planks": true},
@@ -61,6 +62,9 @@
     {"kind": "hay_bale", "x": -27, "z": -23.5, "rot": 0.3},
     {"kind": "cone", "x": 42.5, "z": -10},
     {"kind": "cone", "x": 42.5, "z": -14},
-    {"kind": "cone", "x": 42.5, "z": -18}
+    {"kind": "cone", "x": 42.5, "z": -18},
+    { "kind": "tyre_barrier", "x": 43.2, "z": 3.0, "rot": -1.5708 },
+    { "kind": "flags", "x": -34.5, "z": 21.5, "rot": 1.5708 },
+    { "kind": "tyre_barrier", "x": -34.2, "z": 5.0, "rot": 1.5708 }
   ]
 }

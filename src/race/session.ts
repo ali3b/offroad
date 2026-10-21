@@ -5,6 +5,7 @@ import type * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { buildTrack, type Track } from '../track/build';
 import { dressTrack } from '../track/props-view';
+import { dressStadium, type StadiumView } from '../track/stadium-view';
 import { polygonDistance } from '../track/heights';
 import type { TrackData } from '../track/types';
 import { Truck, TUNING, type TruckInput, type TruckMods } from '../physics/vehicle';
@@ -33,6 +34,9 @@ export class Session {
   readonly queue = new RAPIER.EventQueue(true);
   /** The grandstand fans (async: they appear once the character GLBs have loaded). */
   readonly crowd: Crowd;
+  /** The stadium around the arena (null without models). */
+  readonly stadium: Promise<StadiumView | null>;
+  private stadiumView: StadiumView | null = null;
   time = 0;
   private byCollider = new Map<number, number>();
   private wallHandles = new Set<number>();
@@ -49,7 +53,10 @@ export class Session {
   ) {
     this.track = buildTrack(data, world);
     void dressTrack(this.track);
-    this.crowd = new Crowd(this.track);
+    // The stadium (grandstands, start arch, desert) and then the crowd on its seats.
+    this.stadium = dressStadium(this.track);
+    void this.stadium.then((v) => (this.stadiumView = v));
+    this.crowd = new Crowd(this.track, this.stadium.then((v) => v?.seats ?? null));
     scene.add(this.track.group, this.skids.mesh, this.particles.mesh);
     for (const w of this.track.walls) this.wallHandles.add(w.handle);
     // The season passes its own line-up (the player's colour and initials, CPU drivers); else the default roster.
@@ -236,6 +243,7 @@ export class Session {
     this.particles.sync();
     this.skids.sync(this.time);
     this.crowd.update(this.time);
+    this.stadiumView?.update(this.time);
   }
 
   dispose() {

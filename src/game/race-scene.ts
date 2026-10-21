@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import { createScene } from '../engine/renderer';
 import { fitFixedCamera } from '../engine/camera';
+import { hasModels } from '../race/models';
+import { STAND_TOP } from '../track/stadium-view';
 import { createWorld, RAPIER } from '../physics/world';
 import type { TruckInput, TruckMods } from '../physics/vehicle';
 import { Session } from '../race/session';
@@ -75,6 +77,8 @@ export class RaceScene {
     const anchors = data.hud ?? { panel: { x: b.max.x - 10, z: b.min.z + 2 }, name: { x: b.max.x - 32, z: b.min.z + 0.5 } };
     this.frameBox = b.clone();
     for (const a of [anchors.panel, anchors.name]) this.frameBox.expandByPoint(new THREE.Vector3(a.x, 0, a.z - 1.5));
+    // With the stadium models, show the front rows of the grandstand over the back wall (the original's crowd strip).
+    if (hasModels()) this.frameBox.expandByPoint(new THREE.Vector3(b.getCenter(new THREE.Vector3()).x, STAND_TOP.y, b.min.z - STAND_TOP.back));
     this.hud = new RaceHud(document.body, opts.name, anchors, this.session.track.heightAt);
     this.results = new ResultsScreen(document.body);
     // The title's demo race runs under the logo: no HUD panel or track name.

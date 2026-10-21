@@ -413,6 +413,7 @@ function flagmanTower(t: TrackData, g: HeightGrid): { group: THREE.Group; lights
   box(0.06, 2.6, 0.08, dark, 0.45, 1.3, 0.95);
   // The flagman: overalls, head, an arm holding the chequered flag.
   const man = new THREE.Group();
+  man.name = 'flagman-man';
   man.position.set(0, 2.74, 0);
   group.add(man);
   box(0.5, 0.9, 0.32, suit, 0, 0.45, 0, man);
@@ -441,6 +442,7 @@ function flagmanTower(t: TrackData, g: HeightGrid): { group: THREE.Group; lights
   stick.add(flag);
   // Start tree: a post with three lamps (two red, one green) beside the tower.
   const post = new THREE.Group();
+  post.name = 'start-tree';
   post.position.set(-1.6, 0, 0);
   group.add(post);
   box(0.12, 3.2, 0.12, dark, 0, 1.6, 0, post);
@@ -487,6 +489,7 @@ function stadium(t: TrackData, g: HeightGrid) {
   const back = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 16, 3.2, 0.6), new THREE.MeshLambertMaterial({ color: paletteOf(t).backWall }));
   back.position.set((x0 + x1) / 2, sampleHeight(g, (x0 + x1) / 2, z0 - 4) + 1.6, z0 - 4.2);
   back.receiveShadow = true;
+  back.name = 'back-wall';
   group.add(back);
   // Grandstand: four steps of benches and a speckled crowd of tiny boxes.
   const stand = new THREE.Group();
