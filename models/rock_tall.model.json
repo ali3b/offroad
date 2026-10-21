@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "rock_tall",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Rock_07",
+    "assetId": 12476
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -3.2969,
+      0,
+      -2.1081
+    ],
+    "max": [
+      3.2969,
+      8.5628,
+      2.1081
+    ],
+    "size": [
+      6.5938,
+      8.5628,
+      4.2162
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        4.2814,
+        0
+      ],
+      "size": [
+        6.5938,
+        8.5628,
+        4.2162
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

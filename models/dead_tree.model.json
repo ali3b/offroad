@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "dead_tree",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Tree_Dead_02",
+    "assetId": 12547
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.9671,
+      0,
+      -0.7715
+    ],
+    "max": [
+      0.9671,
+      4.2285,
+      0.7715
+    ],
+    "size": [
+      1.9342,
+      4.2285,
+      1.543
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        2.1143,
+        0
+      ],
+      "size": [
+        1.9342,
+        4.2285,
+        1.543
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "flag_chequered",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Flag_01",
+    "assetId": 13454
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.5157,
+      0,
+      -0.0307
+    ],
+    "max": [
+      0.5157,
+      1.3978,
+      0.0307
+    ],
+    "size": [
+      1.0314,
+      1.3978,
+      0.0614
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.6989,
+        0
+      ],
+      "size": [
+        1.0314,
+        1.3978,
+        0.0614
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

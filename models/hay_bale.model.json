@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "hay_bale",
+  "source": {
+    "pack": "POLYGON_War",
+    "asset": "SM_Prop_Hay_Bale_01",
+    "assetId": 909
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.9115,
+      0,
+      -0.4569
+    ],
+    "max": [
+      0.9115,
+      0.6381,
+      0.4569
+    ],
+    "size": [
+      1.823,
+      0.6381,
+      0.9138
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.3191,
+        0
+      ],
+      "size": [
+        1.823,
+        0.6381,
+        0.9138
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

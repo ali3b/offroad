@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "tire",
+  "source": {
+    "pack": "POLYGON_Apocalypse",
+    "asset": "SM_Prop_Tire_01",
+    "assetId": 10719
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.4129,
+      0,
+      -0.4129
+    ],
+    "max": [
+      0.4129,
+      0.271,
+      0.4129
+    ],
+    "size": [
+      0.8258,
+      0.271,
+      0.8258
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.1355,
+        0
+      ],
+      "size": [
+        0.8258,
+        0.271,
+        0.8258
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

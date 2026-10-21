@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "tire_pile",
+  "source": {
+    "pack": "POLYGON_Apocalypse",
+    "asset": "SM_Prop_Tire_Pile_01",
+    "assetId": 10720
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.5258,
+      0,
+      -1.0071
+    ],
+    "max": [
+      0.5258,
+      0.8191,
+      1.0071
+    ],
+    "size": [
+      1.0516,
+      0.8191,
+      2.0142
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.4096,
+        0
+      ],
+      "size": [
+        1.0516,
+        0.8191,
+        2.0142
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

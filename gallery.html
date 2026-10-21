@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Off Road: gallery</title>
+    <meta name="description" content="Off Road, a 3D arcade off-road racer in the browser: the trailer and screenshots." />
+    <link rel="icon" href="data:," />
+    <style>
+      @font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p-latin-400-normal.woff2') format('woff2'); font-display: swap; }
+      :root { --navy: #0c2f4a; --teal: #0d4a52; --ink: #1b1b22; --bone: #e9e4d4; --sky: #7fd8ff; --gold: #ffd23c; --red: #b8261c; }
+      * { box-sizing: border-box; }
+      html { background: var(--navy); }
+      body { margin: 0; color: #fff; font: 12px/1.9 'Press Start 2P', monospace; text-shadow: 2px 2px 0 #000; background: var(--teal); }
+      a { color: var(--gold); }
+      .banner { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 18px 16px; border-bottom: 4px solid #000;
+        background: linear-gradient(var(--ink) 0 6px, var(--bone) 6px 10px, #2a3b78 10px calc(100% - 10px), var(--bone) calc(100% - 10px) calc(100% - 6px), var(--ink) calc(100% - 6px)); }
+      .banner h1 { margin: 0; font-size: clamp(22px, 6vw, 44px); font-weight: normal; letter-spacing: 3px; color: var(--gold);
+        text-shadow: 3px 3px 0 #6a3a00, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 5px 5px 0 #000; }
+      .chequer { width: 48px; height: 32px; flex: none; background: repeating-conic-gradient(#111 0 25%, #f2f2f2 0 50%) 0 0 / 16px 16px; border: 3px solid #000; }
+      main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+      .panel { background: var(--navy); border: 4px solid #000; box-shadow: inset 0 0 0 3px #2a6b8a, 6px 6px 0 #000; padding: 16px; margin: 0 0 28px; }
+      .panel h2 { margin: 0 0 12px; font-size: 14px; font-weight: normal; color: var(--sky); }
+      .play { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+      .btn { display: inline-block; padding: 12px 18px; background: var(--red); color: #fff; text-decoration: none; border: 3px solid #000;
+        box-shadow: inset -3px -3px 0 #6a0f08, inset 3px 3px 0 #ff6a4a, 4px 4px 0 #000; }
+      .btn:hover, .btn:focus-visible { background: #d63a2a; outline: none; }
+      video { display: block; width: 100%; height: auto; background: #000; border: 3px solid #000; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 18px; }
+      figure { margin: 0; background: var(--ink); border: 3px solid #000; box-shadow: 4px 4px 0 #000; }
+      figure a { display: block; }
+      figure img { display: block; width: 100%; height: auto; image-rendering: auto; }
+      figcaption { padding: 8px 10px; font-size: 10px; line-height: 1.8; }
+      figcaption b { color: var(--gold); font-weight: normal; }
+      footer { font-size: 9px; line-height: 2; color: var(--bone); }
+      @media (max-width: 600px) { body { font-size: 10px; } .chequer { display: none; } }
+    </style>
+  </head>
+  <body>
+    <header class="banner"><div class="chequer"></div><h1>OFF ROAD</h1><div class="chequer"></div></header>
+    <main>
+      <section class="panel play">
+        <div>A 3D arcade off-road racer in the browser.<br />Four trucks, eight tracks, jumps, mud, water and nitros.</div>
+        <a class="btn" href="./">PLAY NOW</a>
+      </section>
+
+      <section class="panel">
+        <h2>THE TRAILER</h2>
+        <video controls preload="metadata" poster="screenshots/title.jpg" playsinline>
+          <source src="videos/offroad-trailer.mp4" type="video/mp4" />
+        </video>
+      </section>
+
+      <section class="panel">
+        <h2>SCREENS</h2>
+        <div class="grid">
+          <figure><a href="screenshots/title.jpg"><img src="screenshots/title.jpg" alt="The title screen over the demo race" loading="lazy" width="1280" height="720" /></a><figcaption>The title screen over the demo race</figcaption></figure>
+          <figure><a href="screenshots/race-rattlesnake.jpg"><img src="screenshots/race-rattlesnake.jpg" alt="Rattlesnake Run: four trucks, four laps" loading="lazy" width="1280" height="720" /></a><figcaption><b>Rattlesnake Run</b>: four trucks, four laps</figcaption></figure>
+          <figure><a href="screenshots/race-results.jpg"><img src="screenshots/race-results.jpg" alt="The podium: prize money, times and the track record" loading="lazy" width="1280" height="720" /></a><figcaption>The podium: prize money, times and the track record</figcaption></figure>
+          <figure><a href="screenshots/shop.jpg"><img src="screenshots/shop.jpg" alt="The Speed Shop between races" loading="lazy" width="1280" height="720" /></a><figcaption>The Speed Shop between races</figcaption></figure>
+          <figure><a href="screenshots/dos-look.jpg"><img src="screenshots/dos-look.jpg" alt="F2: the DOS look, 256 colours" loading="lazy" width="1280" height="720" /></a><figcaption>F2: the DOS look, 256 colours</figcaption></figure>
+          <figure><a href="screenshots/race-rattlesnake-reverse.jpg"><img src="screenshots/race-rattlesnake-reverse.jpg" alt="Every track also runs in reverse" loading="lazy" width="1280" height="720" /></a><figcaption>Every track also runs in reverse</figcaption></figure>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>EIGHT TRACKS, FORWARD AND REVERSED</h2>
+        <div class="grid">
+          <figure><a href="screenshots/track-rattlesnake.jpg"><img src="screenshots/track-rattlesnake.jpg" alt="Rattlesnake Run" loading="lazy" width="1280" height="720" /></a><figcaption><b>Rattlesnake Run</b>: a four-pass serpentine with a ridge across every lane, a plank jump, whoops and mud.</figcaption></figure>
+          <figure><a href="screenshots/track-coyote.jpg"><img src="screenshots/track-coyote.jpg" alt="Coyote Canyon" loading="lazy" width="1280" height="720" /></a><figcaption><b>Coyote Canyon</b>: long straights, a banked lane, puddles, a plank ramp and a jump over a pool.</figcaption></figure>
+          <figure><a href="screenshots/track-boneyard.jpg"><img src="screenshots/track-boneyard.jpg" alt="Bone Yard" loading="lazy" width="1280" height="720" /></a><figcaption><b>Bone Yard</b>: a figure-8 whose connector crosses a deep water pit on a bridge; bone-pile moguls.</figcaption></figure>
+          <figure><a href="screenshots/track-drycreek.jpg"><img src="screenshots/track-drycreek.jpg" alt="Dry Creek Spiral" loading="lazy" width="1280" height="720" /></a><figcaption><b>Dry Creek Spiral</b>: a spiral that exits over its own inner ring on a bridge, with a creek across two lanes.</figcaption></figure>
+          <figure><a href="screenshots/track-twister.jpg"><img src="screenshots/track-twister.jpg" alt="Twister Flats" loading="lazy" width="1280" height="720" /></a><figcaption><b>Twister Flats</b>: an open figure-8 whose crossing is a jump over a water channel between two berms.</figcaption></figure>
+          <figure><a href="screenshots/track-buzzard.jpg"><img src="screenshots/track-buzzard.jpg" alt="Buzzard Bend" loading="lazy" width="1280" height="720" /></a><figcaption><b>Buzzard Bend</b>: a bow-tie figure-8 whose diagonals cross on a striped plank bridge.</figcaption></figure>
+          <figure><a href="screenshots/track-thunder.jpg"><img src="screenshots/track-thunder.jpg" alt="Thunder Ridge" loading="lazy" width="1280" height="720" /></a><figcaption><b>Thunder Ridge</b>: one long ridge across four columns, a jump under bunting at every crossing.</figcaption></figure>
+          <figure><a href="screenshots/track-mesa.jpg"><img src="screenshots/track-mesa.jpg" alt="Mesa Mayhem" loading="lazy" width="1280" height="720" /></a><figcaption><b>Mesa Mayhem</b>: a snake around a zig-zag island, a mesa to fly off, tabletops and giant drums.</figcaption></figure>
+        </div>
+      </section>
+
+      <footer class="panel">
+        Built with three.js and Rapier. 3D assets: Synty Studios POLYGON packs (licensed), exported through the
+        synty-sprite-generator pipeline; they are not covered by the code licence and may not be extracted. Music and
+        sound synthesised in the browser. Font: Press Start 2P (SIL OFL).
+      </footer>
+    </main>
+  </body>
+</html>

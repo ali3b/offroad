@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "name": "flagman",
+  "source": {
+    "pack": "POLYGON_City_Characters",
+    "asset": "SK_Character_Roadworker",
+    "assetId": 16
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.3777,
+      0,
+      -0.2075
+    ],
+    "max": [
+      0.3777,
+      1.8692,
+      0.2075
+    ],
+    "size": [
+      0.7554,
+      1.8692,
+      0.415
+    ]
+  },
+  "parts": [],
+  "sockets": [
+    {
+      "name": "hand_r",
+      "node": "Hand_R",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hand_l",
+      "node": "Hand_L",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "head",
+      "node": "head",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "chest",
+      "node": "spine_03",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hips",
+      "node": "Pelvis",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "clips": [
+    {
+      "name": "POLY_IDL_Base@Masculine",
+      "duration": 1.7667,
+      "loop": false,
+      "source": {
+        "id": 174,
+        "pack": "ANIMATION_Idles",
+        "name": "POLY_IDL_Base",
+        "variant": "Masculine",
+        "set": "Polygon"
+      }
+    },
+    {
+      "name": "Flagman_Wave",
+      "duration": 0.5333,
+      "loop": false,
+      "source": {
+        "id": 3363,
+        "pack": "_Uploads",
+        "name": "Flagman_Wave",
+        "variant": null,
+        "set": null
+      }
+    },
+    {
+      "name": "POLY_EMOT_Happy_ArmsRaised@Masculine",
+      "duration": 3.5333,
+      "loop": false,
+      "source": {
+        "id": 3174,
+        "pack": "ANIMATION_Emotes_And_Taunts",
+        "name": "POLY_EMOT_Happy_ArmsRaised",
+        "variant": "Masculine",
+        "set": "Polygon"
+      }
+    }
+  ],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.9346,
+        0
+      ],
+      "size": [
+        0.7554,
+        1.8692,
+        0.415
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt",
+  "pose": "clip:POLY_IDL_Base@Masculine"
+}

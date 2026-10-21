@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "start_arch",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Gantry_06",
+    "assetId": 13486
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -5.4001,
+      0,
+      -0.5161
+    ],
+    "max": [
+      5.4001,
+      4.7666,
+      0.5161
+    ],
+    "size": [
+      10.8002,
+      4.7666,
+      1.0322
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        2.3833,
+        0
+      ],
+      "size": [
+        10.8002,
+        4.7666,
+        1.0322
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

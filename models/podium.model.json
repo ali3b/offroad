@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "podium",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Podium_01",
+    "assetId": 13565
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -2.6709,
+      0,
+      -0.8174
+    ],
+    "max": [
+      2.6709,
+      0.6019,
+      0.8174
+    ],
+    "size": [
+      5.3418,
+      0.6019,
+      1.6348
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.301,
+        0
+      ],
+      "size": [
+        5.3418,
+        0.6019,
+        1.6348
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

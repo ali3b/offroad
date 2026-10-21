@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "cactus_tall",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Cactus_03",
+    "assetId": 12446
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -1.3752,
+      0,
+      -1.2686
+    ],
+    "max": [
+      1.3752,
+      3.6786,
+      1.2686
+    ],
+    "size": [
+      2.7504,
+      3.6786,
+      2.5372
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        1.8393,
+        0
+      ],
+      "size": [
+        2.7504,
+        3.6786,
+        2.5372
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

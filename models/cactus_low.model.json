@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "cactus_low",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Cactus_01",
+    "assetId": 12444
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.6924,
+      0,
+      -0.6613
+    ],
+    "max": [
+      0.6924,
+      1.0851,
+      0.6613
+    ],
+    "size": [
+      1.3848,
+      1.0851,
+      1.3226
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.5426,
+        0
+      ],
+      "size": [
+        1.3848,
+        1.0851,
+        1.3226
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

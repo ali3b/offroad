@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "billboard_skidmark",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Billboard_Large_02",
+    "assetId": 13370
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -5.1493,
+      0,
+      -0.8704
+    ],
+    "max": [
+      5.1493,
+      5.081,
+      0.8704
+    ],
+    "size": [
+      10.2986,
+      5.081,
+      1.7408
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        2.5405,
+        0
+      ],
+      "size": [
+        10.2986,
+        5.081,
+        1.7408
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "name": "driver_blue",
+  "source": {
+    "pack": "POLYGON_Apocalypse",
+    "asset": "SK_Chr_Mechanic_Female_01",
+    "assetId": 8082
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.4021,
+      0,
+      -0.1797
+    ],
+    "max": [
+      0.4021,
+      1.7856,
+      0.1797
+    ],
+    "size": [
+      0.8042,
+      1.7856,
+      0.3594
+    ]
+  },
+  "parts": [],
+  "sockets": [
+    {
+      "name": "hand_r",
+      "node": "Hand_R",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hand_l",
+      "node": "Hand_L",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "head",
+      "node": "head",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "chest",
+      "node": "spine_03",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hips",
+      "node": "Pelvis",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "clips": [
+    {
+      "name": "POLY_IDL_Base@Feminine",
+      "duration": 1.7667,
+      "loop": false,
+      "source": {
+        "id": 9,
+        "pack": "ANIMATION_Idles",
+        "name": "POLY_IDL_Base",
+        "variant": "Feminine",
+        "set": "Polygon"
+      }
+    },
+    {
+      "name": "POLY_EMOT_Celebrate_BeatChest@Feminine",
+      "duration": 3.1333,
+      "loop": false,
+      "source": {
+        "id": 3084,
+        "pack": "ANIMATION_Emotes_And_Taunts",
+        "name": "POLY_EMOT_Celebrate_BeatChest",
+        "variant": "Feminine",
+        "set": "Polygon"
+      }
+    },
+    {
+      "name": "Driver_Trophy",
+      "duration": 4.5,
+      "loop": false,
+      "source": {
+        "id": 3361,
+        "pack": "_Uploads",
+        "name": "Driver_Trophy",
+        "variant": null,
+        "set": null
+      }
+    },
+    {
+      "name": "POLY_EMOT_Celebrate_Clapping_Polite@Feminine",
+      "duration": 3.5333,
+      "loop": false,
+      "source": {
+        "id": 3085,
+        "pack": "ANIMATION_Emotes_And_Taunts",
+        "name": "POLY_EMOT_Celebrate_Clapping_Polite",
+        "variant": "Feminine",
+        "set": "Polygon"
+      }
+    },
+    {
+      "name": "POLY_EMOT_Happy_FistPump@Feminine",
+      "duration": 3.5333,
+      "loop": false,
+      "source": {
+        "id": 3105,
+        "pack": "ANIMATION_Emotes_And_Taunts",
+        "name": "POLY_EMOT_Happy_FistPump",
+        "variant": "Feminine",
+        "set": "Polygon"
+      }
+    },
+    {
+      "name": "Driver_Defeated",
+      "duration": 6.7333,
+      "loop": false,
+      "source": {
+        "id": 3358,
+        "pack": "_Uploads",
+        "name": "Driver_Defeated",
+        "variant": null,
+        "set": null
+      }
+    }
+  ],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.8928,
+        0
+      ],
+      "size": [
+        0.8042,
+        1.7856,
+        0.3594
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt",
+  "pose": "clip:POLY_IDL_Base@Feminine"
+}

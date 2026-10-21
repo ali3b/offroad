@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "succulent_b",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Succulent_06",
+    "assetId": 12536
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -1.7156,
+      0,
+      -1.4614
+    ],
+    "max": [
+      1.7156,
+      5.4905,
+      1.4614
+    ],
+    "size": [
+      3.4312,
+      5.4905,
+      2.9228
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        2.7453,
+        0
+      ],
+      "size": [
+        3.4312,
+        5.4905,
+        2.9228
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

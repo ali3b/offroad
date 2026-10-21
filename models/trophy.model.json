@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "name": "trophy",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Trophy_01",
+    "assetId": 13669
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.2623,
+      0,
+      -0.1362
+    ],
+    "max": [
+      0.2623,
+      0.8414,
+      0.1362
+    ],
+    "size": [
+      0.5246,
+      0.8414,
+      0.2724
+    ]
+  },
+  "parts": [
+    {
+      "node": "SM_Prop_Trophy_01_Lid_01",
+      "role": "lid",
+      "pivot": [
+        0.0002,
+        0.8414,
+        -0.1362
+      ],
+      "hinge": {
+        "pos": [
+          0.0002,
+          0.8414,
+          -0.1362
+        ],
+        "axis": [
+          -1,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.4207,
+        0
+      ],
+      "size": [
+        0.5246,
+        0.8414,
+        0.2724
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

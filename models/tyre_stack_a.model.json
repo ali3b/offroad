@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "tyre_stack_a",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Tyre_Stack_02",
+    "assetId": 13680
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.5708,
+      0,
+      -0.5385
+    ],
+    "max": [
+      0.5708,
+      1.2528,
+      0.5385
+    ],
+    "size": [
+      1.1416,
+      1.2528,
+      1.077
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.6264,
+        0
+      ],
+      "size": [
+        1.1416,
+        1.2528,
+        1.077
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

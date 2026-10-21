@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "tyre_barrier",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Barrier_Tyres_01",
+    "assetId": 13362
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -1.7708,
+      0,
+      -0.5204
+    ],
+    "max": [
+      1.7708,
+      1.7822,
+      0.5204
+    ],
+    "size": [
+      3.5416,
+      1.7822,
+      1.0408
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.8911,
+        0
+      ],
+      "size": [
+        3.5416,
+        1.7822,
+        1.0408
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

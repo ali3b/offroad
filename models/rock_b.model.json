@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "rock_b",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Rocks_Spikey_01",
+    "assetId": 12522
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -1.7863,
+      0,
+      -1.253
+    ],
+    "max": [
+      1.7863,
+      3.1961,
+      1.253
+    ],
+    "size": [
+      3.5726,
+      3.1961,
+      2.506
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        1.5981,
+        0
+      ],
+      "size": [
+        3.5726,
+        3.1961,
+        2.506
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

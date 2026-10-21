@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "name": "fan_c",
+  "source": {
+    "pack": "POLYGON_City_Characters",
+    "asset": "SK_Character_HipsterGuy",
+    "assetId": 9
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.3236,
+      0,
+      -0.3814
+    ],
+    "max": [
+      0.3236,
+      1.4245,
+      0.3814
+    ],
+    "size": [
+      0.6472,
+      1.4245,
+      0.7628
+    ]
+  },
+  "parts": [],
+  "sockets": [
+    {
+      "name": "hand_r",
+      "node": "Hand_R",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hand_l",
+      "node": "Hand_L",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "head",
+      "node": "head",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "chest",
+      "node": "spine_03",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "hips",
+      "node": "Pelvis",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "rot": [
+        0,
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "clips": [
+    {
+      "name": "Crowd_Sit_Idle",
+      "duration": 4.3,
+      "loop": true,
+      "source": {
+        "id": 3355,
+        "pack": "_Uploads",
+        "name": "Crowd_Sit_Idle",
+        "variant": null,
+        "set": null
+      }
+    },
+    {
+      "name": "Crowd_Sit_Cheer",
+      "duration": 2.2,
+      "loop": false,
+      "source": {
+        "id": 3352,
+        "pack": "_Uploads",
+        "name": "Crowd_Sit_Cheer",
+        "variant": null,
+        "set": null
+      }
+    },
+    {
+      "name": "POLY_EMOT_Happy_ArmsRaised@Masculine",
+      "duration": 3.5333,
+      "loop": false,
+      "source": {
+        "id": 3174,
+        "pack": "ANIMATION_Emotes_And_Taunts",
+        "name": "POLY_EMOT_Happy_ArmsRaised",
+        "variant": "Masculine",
+        "set": "Polygon"
+      }
+    }
+  ],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.7123,
+        0
+      ],
+      "size": [
+        0.6472,
+        1.4245,
+        0.7628
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt",
+  "pose": "clip:Crowd_Sit_Idle"
+}

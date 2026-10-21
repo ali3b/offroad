@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "flame",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Flame_Mesh_01",
+    "assetId": 13095
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.0582,
+      0,
+      -0.0504
+    ],
+    "max": [
+      0.0582,
+      0.2077,
+      0.0504
+    ],
+    "size": [
+      0.1164,
+      0.2077,
+      0.1008
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.1039,
+        0
+      ],
+      "size": [
+        0.1164,
+        0.2077,
+        0.1008
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

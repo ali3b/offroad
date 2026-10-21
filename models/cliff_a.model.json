@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "cliff_a",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Env_Rock_Cliff_03",
+    "assetId": 12489
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -11.3264,
+      0,
+      -4.6377
+    ],
+    "max": [
+      11.3264,
+      10.2571,
+      4.6377
+    ],
+    "size": [
+      22.6528,
+      10.2571,
+      9.2754
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        5.1286,
+        0
+      ],
+      "size": [
+        22.6528,
+        10.2571,
+        9.2754
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

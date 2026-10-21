@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "name": "pit_box",
+  "source": {
+    "pack": "POLYGON_Pro_Racer",
+    "asset": "SM_Prop_Pit_Box_02",
+    "assetId": 13556
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -1.5223,
+      0,
+      -0.5326
+    ],
+    "max": [
+      1.5223,
+      1.7395,
+      0.5326
+    ],
+    "size": [
+      3.0446,
+      1.7395,
+      1.0652
+    ]
+  },
+  "parts": [
+    {
+      "node": "SM_Prop_Pit_Box_02_Cabinet_01",
+      "role": null,
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Cabinet_02",
+      "role": null,
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Cabinet_03",
+      "role": null,
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_01",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_02",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_03",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_04",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_05",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Drawer_06",
+      "role": "drawer",
+      "pivot": [
+        -0.2008,
+        0.0216,
+        0.0107
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Wheel_B_01",
+      "role": "wheel",
+      "pivot": [
+        -1.2014,
+        0.2535,
+        0.0124
+      ],
+      "radius": 0.4871,
+      "spinAxis": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "node": "SM_Prop_Pit_Box_02_Wheel_F_01",
+      "role": "wheel",
+      "pivot": [
+        0.8031,
+        0.2535,
+        0.0077
+      ],
+      "radius": 0.4918,
+      "spinAxis": [
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.8698,
+        0
+      ],
+      "size": [
+        3.0446,
+        1.7395,
+        1.0652
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

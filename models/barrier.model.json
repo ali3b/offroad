@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "barrier",
+  "source": {
+    "pack": "POLYGON_Palm_City",
+    "asset": "SM_Prop_Barrier_01",
+    "assetId": 3090
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.445,
+      0,
+      -0.4038
+    ],
+    "max": [
+      0.445,
+      1.2959,
+      0.4038
+    ],
+    "size": [
+      0.89,
+      1.2959,
+      0.8076
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.648,
+        0
+      ],
+      "size": [
+        0.89,
+        1.2959,
+        0.8076
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}

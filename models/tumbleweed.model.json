@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "name": "tumbleweed",
+  "source": {
+    "pack": "POLYGON_NatureBiomes_AridDesert",
+    "asset": "SM_Prop_Tumbleweed_01",
+    "assetId": 12578
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.3777,
+      0,
+      -0.3777
+    ],
+    "max": [
+      0.3777,
+      0.7554,
+      0.3777
+    ],
+    "size": [
+      0.7554,
+      0.7554,
+      0.7554
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.3777,
+        0
+      ],
+      "size": [
+        0.7554,
+        0.7554,
+        0.7554
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets",
+  "compress": "meshopt"
+}

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "barrel_coloured",
+  "source": {
+    "pack": "POLYGON_Apocalypse",
+    "asset": "SM_Prop_Barrel_Coloured_01",
+    "assetId": 10062
+  },
+  "units": "m",
+  "forward": "+Z",
+  "up": "+Y",
+  "origin": "bottom-centre",
+  "bounds": {
+    "min": [
+      -0.3526,
+      0,
+      -0.3631
+    ],
+    "max": [
+      0.3526,
+      1.0454,
+      0.3631
+    ],
+    "size": [
+      0.7052,
+      1.0454,
+      0.7262
+    ]
+  },
+  "parts": [],
+  "sockets": [],
+  "clips": [],
+  "collider": {
+    "box": {
+      "center": [
+        0,
+        0.5227,
+        0
+      ],
+      "size": [
+        0.7052,
+        1.0454,
+        0.7262
+      ]
+    }
+  },
+  "licence": "Synty Store EULA: not for redistribution as source assets"
+}
