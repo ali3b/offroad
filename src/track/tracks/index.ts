@@ -1,13 +1,29 @@
 // The track registry. Each track is one JSON file (format: ../types.ts, docs/DESIGN.md "Track format").
-// OR3 adds the other seven here.
 import type { TrackData } from '../types';
 import test from './test.json';
 import rattlesnake from './rattlesnake.json';
+import coyote from './coyote.json';
+import boneyard from './boneyard.json';
+import drycreek from './drycreek.json';
+import twister from './twister.json';
+import buzzard from './buzzard.json';
+import thunder from './thunder.json';
+import mesa from './mesa.json';
 
 export const TRACKS: Record<string, TrackData> = {
   test: test as TrackData,
   rattlesnake: rattlesnake as TrackData,
+  coyote: coyote as TrackData,
+  boneyard: boneyard as TrackData,
+  drycreek: drycreek as TrackData,
+  twister: twister as TrackData,
+  buzzard: buzzard as TrackData,
+  thunder: thunder as TrackData,
+  mesa: mesa as TrackData,
 };
+
+/** The eight race tracks in season order (the order they join the rotation). */
+export const TRACK_ORDER: string[] = ['rattlesnake', 'coyote', 'boneyard', 'drycreek', 'twister', 'buzzard', 'thunder', 'mesa'];
 
 /** The track for `id`, driven backwards when `reversed` (the line and gates flip; ramps face the other way). */
 export function getTrack(id: string, reversed = false): TrackData {
