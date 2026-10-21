@@ -1,5 +1,6 @@
 // Maps the game's event bus (src/race/events.ts) onto the audio contract (./types.ts) and attaches the audio system.
-// Pan comes from each truck's screen x, which only the scene knows, so main.ts passes `screenX`.
+// Pan comes from each truck's screen x, which only the scene knows, so main.ts passes `screenX`; `isPlayer` says which
+// trucks are human (local multiplayer: every human's engine, skids, laps and finish at player level).
 // Screens (game/flow.ts `screen` events) pick the music: the attract loop and sign-up play the title song, the shop
 // its own; the race and podium music still follow the race phases. The title's demo race stays silent apart from
 // the title song (its engines, skids and race music are dropped).
@@ -10,7 +11,7 @@ import type { AudioBus, AudioEvents } from './types';
 
 type Fn = (e: never) => void;
 
-export function bridgeAudio(game: EventBus<GameEvents>, screenX: (truck: number) => number) {
+export function bridgeAudio(game: EventBus<GameEvents>, screenX: (truck: number) => number, isPlayer: (truck: number) => boolean = (t) => t === 0) {
   const subs = new Map<keyof AudioEvents, Set<Fn>>();
   const send = <K extends keyof AudioEvents>(type: K, e: AudioEvents[K]) => {
     for (const fn of subs.get(type) ?? []) (fn as (e: AudioEvents[K]) => void)(e);
@@ -40,20 +41,20 @@ export function bridgeAudio(game: EventBus<GameEvents>, screenX: (truck: number)
     if (music) scene(music);
   });
 
-  game.on('engine', (e) => !attract() && send('engine', { truck: e.truck, rpm: e.rpm, throttle: e.throttle, x: screenX(e.truck) }));
+  game.on('engine', (e) => !attract() && send('engine', { truck: e.truck, rpm: e.rpm, throttle: e.throttle, x: screenX(e.truck), player: e.player }));
   game.on('impact', (e) => {
     if (attract()) return;
     // Ground hits are landings; the land event already covers them.
     if (e.with !== 'ground') send('impact', { strength: e.strength, with: e.with, x: screenX(e.truck) });
   });
-  game.on('skid', (e) => !attract() && send('skid', { truck: e.truck, amount: e.intensity, x: screenX(e.truck) }));
+  game.on('skid', (e) => !attract() && send('skid', { truck: e.truck, amount: e.intensity, x: screenX(e.truck), player: isPlayer(e.truck) }));
   game.on('splash', (e) => !attract() && send('splash', { x: screenX(e.truck) }));
-  game.on('nitro', (e) => !attract() && send('nitro', { truck: e.truck, x: screenX(e.truck) }));
+  game.on('nitro', (e) => !attract() && send('nitro', { truck: e.truck, x: screenX(e.truck), player: isPlayer(e.truck) }));
   // About a second of air is a big landing.
   game.on('land', (e) => !attract() && send('land', { strength: Math.min(1, e.airTime / 1), x: screenX(e.truck) }));
   game.on('countdown', (e) => attract() || (e.n > 0 ? send('countdown', { n: e.n }) : send('go', undefined)));
-  game.on('lap', (e) => !attract() && send('lap', { truck: e.truck, lap: e.lap }));
-  game.on('finish', (e) => !attract() && send('finish', { truck: e.truck, place: e.place }));
+  game.on('lap', (e) => !attract() && send('lap', { truck: e.truck, lap: e.lap, player: isPlayer(e.truck) }));
+  game.on('finish', (e) => !attract() && send('finish', { truck: e.truck, place: e.place, player: isPlayer(e.truck) }));
   game.on('pickup', (e) => !attract() && send('pickup', { kind: e.kind }));
   game.on('phase', (e) => {
     if (attract()) return;

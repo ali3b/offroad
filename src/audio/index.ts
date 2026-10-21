@@ -34,8 +34,12 @@ const ENGINE_TIMEOUT = 0.4;
 export class AudioSystem {
   ctx: AudioContext | null = null;
   settings: AudioSettings = loadSettings();
-  /** Which truck is the player's (louder engine; lap/finish sounds). */
+  /** Which truck is the player's when an event doesn't say (louder engine; lap/finish sounds). */
   playerTruck = 0;
+  /** A human's truck: the event's own flag (every local-multiplayer human), else playerTruck. */
+  private isPlayer(e: { truck: number; player?: boolean }) {
+    return e.player ?? e.truck === this.playerTruck;
+  }
   private mix: ReturnType<typeof buildMix> | null = null;
   private player: SongPlayer | null = null;
   private songName: string | null = null;
@@ -165,14 +169,14 @@ export class AudioSystem {
     if (!this.ctx || !this.mix) return;
     let v = this.engines.get(e.truck);
     if (!v) this.engines.set(e.truck, (v = new EngineVoice(this.ctx, this.mix.sfx, e.truck)));
-    v.set(e.rpm, e.throttle, e.x, e.truck === this.playerTruck);
+    v.set(e.rpm, e.throttle, e.x, this.isPlayer(e));
   }
 
   skid(e: AudioEvents['skid']) {
     if (!this.ctx || !this.mix) return;
     let v = this.skids.get(e.truck);
     if (!v) this.skids.set(e.truck, (v = new SkidVoice(this.ctx, this.mix.sfx)));
-    v.set(e.truck === this.playerTruck ? e.amount : e.amount * 0.5, e.x ?? 0);
+    v.set(this.isPlayer(e) ? e.amount : e.amount * 0.5, e.x ?? 0);
   }
 
   /** Silence engines/skids that stopped getting updates. */
@@ -220,7 +224,7 @@ export class AudioSystem {
     bus.on('skid', (e) => this.skid(e));
     bus.on('impact', (e) => this.sfx(e.with === 'truck' ? 'truckHit' : 'impact', { strength: e.strength, x: e.x }));
     bus.on('splash', (e) => this.sfx('splash', { x: e?.x }));
-    bus.on('nitro', (e) => this.sfx('nitro', { x: e.x, strength: e.truck === this.playerTruck ? 1 : 0.5 }));
+    bus.on('nitro', (e) => this.sfx('nitro', { x: e.x, strength: this.isPlayer(e) ? 1 : 0.5 }));
     bus.on('land', (e) => this.sfx('land', { strength: e.strength, x: e.x }));
     bus.on('countdown', () => this.sfx('countdown'));
     bus.on('go', () => {
@@ -228,11 +232,11 @@ export class AudioSystem {
       this.startRaceMusic();
     });
     bus.on('lap', (e) => {
-      if (e.truck === this.playerTruck && e.lap > 0) this.sfx('lap');
+      if (this.isPlayer(e) && e.lap > 0) this.sfx('lap');
     });
     bus.on('finish', (e) => {
-      if (e.truck === this.playerTruck || e.place === 1) this.sfx('finish');
-      if (e.truck === this.playerTruck && e.place === 1) this.sfx('cheer');
+      if (this.isPlayer(e) || e.place === 1) this.sfx('finish');
+      if (this.isPlayer(e) && e.place === 1) this.sfx('cheer');
     });
     bus.on('pickup', () => this.sfx('pickup'));
     bus.on('scene', (e) => this.scene(e.name));

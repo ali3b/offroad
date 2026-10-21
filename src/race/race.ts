@@ -1,6 +1,7 @@
 // The race flow on top of a Session: "Get Ready!" → three red lamps and the flagman → race (laps counted by the
 // ordered checkpoint gates, so no shortcuts) → finish → results (prize money, times, the track record) → again.
-// CPU trucks drive with AiDriver; the player can be put on autopilot (tests, attract mode).
+// CPU trucks drive with AiDriver; every human truck (1..3, local multiplayer) gets its own input; the humans can be put
+// on autopilot (tests, attract mode).
 import { NO_INPUT, type TruckInput } from '../physics/vehicle';
 import type { XZ } from '../track/types';
 import { AiDriver } from './ai';
@@ -14,7 +15,7 @@ export type Phase = 'ready' | 'countdown' | 'racing' | 'results';
 /** Seconds of "Get Ready!", then one lamp a second, green at COUNTDOWN. */
 export const READY_TIME = 1.8;
 export const COUNTDOWN = 3;
-/** After the player finishes, the race ends at the latest this long later (stragglers are ranked by progress). */
+/** After the last human finishes, the race ends at the latest this long later (stragglers are ranked by progress). */
 const STRAGGLER_TIME = 25;
 /** Hard cap on a race (s), whatever happens. */
 const MAX_RACE = 300;
@@ -103,6 +104,8 @@ export class Race {
   private gateSide: number[];
   private finishedCount = 0;
   private playerDoneAt: number | null = null;
+  /** The human trucks' slots, in player order (season: players first; standalone: slot 0). */
+  readonly humans: number[];
   pickups: Pickups;
   results: RacerResult[] | null = null;
   record: RaceRecord | null;
@@ -122,6 +125,8 @@ export class Race {
   ) {
     this.startNitros = opts.nitros ?? null;
     this.saveRecords = opts.saveRecords ?? true;
+    const humans = session.racers.filter((r) => r.entry.human).map((r) => r.slot);
+    this.humans = humans.length ? humans : [0];
     const t = session.track;
     if (!t.line || !t.data.gates?.length) throw new Error(`track "${t.data.id}" has no racing line or gates`);
     this.laps = t.data.laps ?? 4;
@@ -205,7 +210,13 @@ export class Race {
     return Math.min(this.laps, this.states[slot].lap + 1);
   }
 
-  step(dt: number, playerInput: TruckInput) {
+  isHuman(slot: number) {
+    return this.humans.includes(slot);
+  }
+
+  /** One physics step. `humanInputs[k]` drives human k (a single input = player 1). */
+  step(dt: number, humanInputs: TruckInput | TruckInput[]) {
+    const hin = Array.isArray(humanInputs) ? humanInputs : [humanInputs];
     const s = this.session;
     this.phaseT += dt;
     const racing = this.phase === 'racing';
@@ -229,24 +240,27 @@ export class Race {
     if (this.phase === 'racing') this.clock += dt;
     s.track.flagman.pose(this.phase === 'ready' ? 0 : this.phase === 'countdown' ? 1 : this.phase === 'racing' && this.clock < 2 ? 2 : 0, s.time);
 
-    // Inputs: held on the grid until the green light; CPU (and autopilot) from the AI.
-    const leaderGap = this.progress(0);
+    // Inputs: held on the grid until the green light; CPU (and autopilot) from the AI. The rubber band pulls the CPU
+    // trucks towards the leading human.
+    const leaderGap = Math.max(...this.humans.map((h) => this.progress(h)));
     const inputs = s.racers.map((r, i) => {
       const st = this.states[i];
       if (this.phase === 'ready' || this.phase === 'countdown') return NO_INPUT;
-      const ai = i > 0 || this.autopilot || st.finished;
-      if (!ai) return playerInput;
+      const human = this.humans.indexOf(i);
+      const ai = human < 0 || this.autopilot || st.finished;
+      if (!ai) return hin[human] ?? NO_INPUT;
       const gap = this.progress(i) - leaderGap;
-      const rubber = i === 0 ? 1 : Math.max(0.94, Math.min(1.05, 1 - gap * 0.0015));
+      const rubber = human >= 0 ? 1 : Math.max(0.94, Math.min(1.05, 1 - gap * 0.0015));
       const input = st.ai.drive(r.truck, { rubber, wallAhead: s.wallAhead(r.truck), racing: racing && !st.finished, dt });
       if (st.ai.wantsRescue) this.rescue(i);
       return input;
     });
-    // Player's own driving keeps the AI's line position fresh (for positions and rescue).
-    if (!this.autopilot && this.phase === 'racing') {
-      const p = s.truck.body.translation();
-      this.states[0].ai.s = this.line.project(p.x, p.z, this.states[0].ai.s).s;
-    }
+    // The humans' own driving keeps their AI line position fresh (for positions and rescue).
+    if (!this.autopilot && this.phase === 'racing')
+      for (const h of this.humans) {
+        const p = s.racers[h].truck.body.translation();
+        this.states[h].ai.s = this.line.project(p.x, p.z, this.states[h].ai.s).s;
+      }
     s.step(dt, inputs);
     // A truck that somehow left the arena (or fell through) goes back onto the line.
     s.racers.forEach((r, i) => {
@@ -319,7 +333,8 @@ export class Race {
         st.finished = true;
         st.finishTime = this.clock;
         st.place = ++this.finishedCount;
-        if (i === 0) this.playerDoneAt = this.clock;
+        // The straggler clock starts once every human is in.
+        if (this.humans.every((h) => this.states[h].finished)) this.playerDoneAt = this.clock;
         events.emit('finish', { truck: i, place: st.place, time: this.clock });
       } else events.emit('lap', { truck: i, lap: st.lap + 1, lapTime });
     });
@@ -380,6 +395,7 @@ export class Race {
         return {
           slot: i,
           colour: r.entry.colour,
+          human: this.isHuman(i),
           lap: st.lap,
           lapShown: this.lapShown(i),
           nextGate: st.nextGate,

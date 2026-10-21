@@ -1,13 +1,25 @@
-// Keyboard + Gamepad API → TruckInput. Tests can override with window.__or.setInput().
+// Keyboard + Gamepad API → TruckInput, per player. Tests can override with window.__or.setInput().
+//
+// One human: readInput() — arrows or WASD, Space / Shift = nitro, and any gamepad (KEY_SCHEMES.solo).
+// Two or three humans (local multiplayer) split the keyboard: the WASD player (Left Shift = nitro), the arrows player
+// (Right Ctrl or Enter = nitro); a third player drives with a gamepad. Every human can also use a pad: a player who
+// joined with a pad keeps that pad, the other pads go to the other players in join order (padsFor()).
 import type { TruckInput } from '../physics/vehicle';
 
 const held = new Set<string>();
 const pressed = new Set<string>();
+/** Menu presses in order (a Set would merge two presses of the same key within one frame). */
+const menuQueue: string[] = [];
 
 export function initKeyboard() {
   window.addEventListener('keydown', (e) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F2', 'F3', 'Backspace'].includes(e.code)) e.preventDefault();
-    if (!held.has(e.code)) pressed.add(e.code);
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F2', 'F3', 'Backspace', 'ControlRight'].includes(e.code)) e.preventDefault();
+    if (!held.has(e.code)) {
+      pressed.add(e.code);
+      menuQueue.push(e.code);
+      // Standalone scenes never drain the menu queue: keep it short.
+      if (menuQueue.length > 32) menuQueue.shift();
+    }
     held.add(e.code);
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
@@ -24,42 +36,113 @@ export function wasPressed(code: string) {
 const any = (...codes: string[]) => codes.some((c) => held.has(c));
 const DEAD = 0.18;
 
-function gamepad(): TruckInput | null {
-  const pads = navigator.getGamepads?.() ?? [];
-  for (const p of pads) {
-    if (!p || !p.connected) continue;
-    const b = (i: number) => p.buttons[i]?.value ?? 0;
-    const sx = p.axes[0] ?? 0;
-    const steer = Math.abs(sx) < DEAD ? 0 : (sx - Math.sign(sx) * DEAD) / (1 - DEAD);
-    const dpad = (b(15) > 0.5 ? 1 : 0) - (b(14) > 0.5 ? 1 : 0);
-    const input = {
-      // RT or A for gas, LT or X for brake/reverse, B / Y / RB for nitro.
-      throttle: Math.max(b(7), b(0)),
-      brake: Math.max(b(6), b(2)),
-      steer: Math.max(-1, Math.min(1, steer + dpad)),
-      nitro: b(1) > 0.5 || b(3) > 0.5 || b(5) > 0.5,
-    };
-    if (input.throttle || input.brake || input.steer || input.nitro) return input;
-  }
-  return null;
+// ---- Driving bindings ---------------------------------------------------------------------------------------------
+
+/** A keyboard layout for one driver. 'solo' is the single-player layout (both key sets). */
+export type KeyScheme = 'solo' | 'wasd' | 'arrows';
+
+export interface KeyBinding {
+  up: string[];
+  down: string[];
+  left: string[];
+  right: string[];
+  nitro: string[];
+  /** Short label for the sign-up panel. */
+  label: string;
 }
 
-export function readInput(): TruckInput {
-  const pad = gamepad();
-  if (pad) return pad;
+/** The keyboard split (edit here to rebind). */
+export const KEY_SCHEMES: Record<KeyScheme, KeyBinding> = {
+  solo: {
+    up: ['ArrowUp', 'KeyW'],
+    down: ['ArrowDown', 'KeyS'],
+    left: ['ArrowLeft', 'KeyA'],
+    right: ['ArrowRight', 'KeyD'],
+    nitro: ['Space', 'ShiftLeft', 'ShiftRight'],
+    label: 'KEYS OR PAD',
+  },
+  wasd: { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], nitro: ['ShiftLeft'], label: 'WASD + L.SHIFT' },
+  arrows: { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], nitro: ['ControlRight', 'Enter', 'NumpadEnter'], label: 'ARROWS + R.CTRL' },
+};
+
+/** One human's controls: a keyboard layout (or none: pad only) and the pad they joined with (else one is lent in join order). */
+export interface Control {
+  keys: KeyScheme | null;
+  pad: number | null;
+}
+
+/** The driving input of one keyboard layout. */
+export function readKeys(scheme: KeyScheme): TruckInput {
+  const k = KEY_SCHEMES[scheme];
   return {
-    throttle: any('ArrowUp', 'KeyW') ? 1 : 0,
-    brake: any('ArrowDown', 'KeyS') ? 1 : 0,
-    steer: (any('ArrowRight', 'KeyD') ? 1 : 0) - (any('ArrowLeft', 'KeyA') ? 1 : 0),
-    nitro: any('Space', 'ShiftLeft', 'ShiftRight'),
+    throttle: any(...k.up) ? 1 : 0,
+    brake: any(...k.down) ? 1 : 0,
+    steer: (any(...k.right) ? 1 : 0) - (any(...k.left) ? 1 : 0),
+    nitro: any(...k.nitro),
   };
+}
+
+function padInput(p: Gamepad): TruckInput {
+  const b = (i: number) => p.buttons[i]?.value ?? 0;
+  const sx = p.axes[0] ?? 0;
+  const steer = Math.abs(sx) < DEAD ? 0 : (sx - Math.sign(sx) * DEAD) / (1 - DEAD);
+  const dpad = (b(15) > 0.5 ? 1 : 0) - (b(14) > 0.5 ? 1 : 0);
+  // RT or A for gas, LT or X for brake/reverse, B / Y / RB for nitro.
+  return {
+    throttle: Math.max(b(7), b(0)),
+    brake: Math.max(b(6), b(2)),
+    steer: Math.max(-1, Math.min(1, steer + dpad)),
+    nitro: b(1) > 0.5 || b(3) > 0.5 || b(5) > 0.5,
+  };
+}
+
+const active = (i: TruckInput) => !!(i.throttle || i.brake || i.steer || i.nitro);
+const IDLE: TruckInput = { throttle: 0, brake: 0, steer: 0, nitro: false };
+
+function connectedPads(): Gamepad[] {
+  return [...(navigator.getGamepads?.() ?? [])].filter((p): p is Gamepad => !!p && p.connected);
+}
+
+/** One pad's driving input (null when that pad isn't connected). */
+export function readPad(index: number): TruckInput | null {
+  const p = connectedPads().find((x) => x.index === index);
+  return p ? padInput(p) : null;
+}
+
+/**
+ * Which pad each human drives with: a pad they joined with stays theirs; the other connected pads go to the players
+ * without one, in join order (pad index order). null = no pad for that player right now.
+ */
+export function padsFor(controls: Control[], connected = connectedPads().map((p) => p.index)): (number | null)[] {
+  const fixed = new Set(controls.map((c) => c.pad).filter((p): p is number => p !== null));
+  const free = connected.filter((i) => !fixed.has(i)).sort((a, b) => a - b);
+  return controls.map((c) => (c.pad !== null ? c.pad : (free.shift() ?? null)));
+}
+
+/** Every human's driving input (index = player). A single 'solo' player reads like readInput(). */
+export function readPlayers(controls: Control[]): TruckInput[] {
+  if (controls.length === 1 && controls[0].keys === 'solo' && controls[0].pad === null) return [readInput()];
+  const pads = padsFor(controls);
+  return controls.map((c, i) => {
+    const pad = pads[i] !== null ? readPad(pads[i]!) : null;
+    if (pad && active(pad)) return pad;
+    return c.keys ? readKeys(c.keys) : IDLE;
+  });
+}
+
+/** One human (standalone scenes, a 1-player season): the first active pad, else arrows or WASD. */
+export function readInput(): TruckInput {
+  for (const p of connectedPads()) {
+    const input = padInput(p);
+    if (active(input)) return input;
+  }
+  return readKeys('solo');
 }
 
 /** Gamepad Back/Select resets the truck (keyboard: R). */
 let padResetHeld = false;
 export function resetRequested() {
-  const pads = navigator.getGamepads?.() ?? [];
-  const now = pads.some((p) => p?.connected && (p.buttons[8]?.pressed ?? false));
+  const now = connectedPads().some((p) => p.buttons[8]?.pressed ?? false);
   const edge = now && !padResetHeld;
   padResetHeld = now;
   return wasPressed('KeyR') || edge;
@@ -68,8 +151,7 @@ export function resetRequested() {
 /** Enter / Space on the keyboard or A / Start on a pad (menus: "race again"). Edge-triggered. */
 let padConfirmHeld = false;
 export function confirmPressed() {
-  const pads = navigator.getGamepads?.() ?? [];
-  const now = pads.some((p) => p?.connected && ((p.buttons[0]?.pressed ?? false) || (p.buttons[9]?.pressed ?? false)));
+  const now = connectedPads().some((p) => (p.buttons[0]?.pressed ?? false) || (p.buttons[9]?.pressed ?? false));
   const edge = now && !padConfirmHeld;
   padConfirmHeld = now;
   const key = wasPressed('Enter') || wasPressed('NumpadEnter');
@@ -79,36 +161,46 @@ export function confirmPressed() {
 // ---- Menus ------------------------------------------------------------------------------------------------------
 
 export type MenuKey = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back';
+/**
+ * Where a menu press came from: the WASD side of the keyboard ('wasd': W A S D, Left Shift, Space), the arrows side
+ * ('arrows': arrows, Enter, Right Ctrl), the rest of the keyboard ('kb': Esc, Backspace, other letters), or a pad
+ * ('pad0', 'pad1', …). Tests leave it out.
+ */
+export type MenuSrc = 'wasd' | 'arrows' | 'kb' | `pad${number}`;
+
 /** One menu press: a navigation key and/or a typed letter (A–Z, for the initials). */
 export interface MenuEvent {
   key?: MenuKey;
   letter?: string;
+  src?: MenuSrc;
+  /** The human this press belongs to (the flow fills it in; tests may set it). undefined = anyone. */
+  player?: number;
 }
 
-const MENU_CODES: Record<string, MenuKey> = {
-  ArrowUp: 'up',
-  KeyW: 'up',
-  ArrowDown: 'down',
-  KeyS: 'down',
-  ArrowLeft: 'left',
-  KeyA: 'left',
-  ArrowRight: 'right',
-  KeyD: 'right',
-  Enter: 'confirm',
-  NumpadEnter: 'confirm',
-  Space: 'confirm',
-  Escape: 'back',
-  Backspace: 'back',
+const MENU_CODES: Record<string, [MenuKey, MenuSrc]> = {
+  KeyW: ['up', 'wasd'],
+  KeyS: ['down', 'wasd'],
+  KeyA: ['left', 'wasd'],
+  KeyD: ['right', 'wasd'],
+  ShiftLeft: ['confirm', 'wasd'],
+  Space: ['confirm', 'wasd'],
+  ArrowUp: ['up', 'arrows'],
+  ArrowDown: ['down', 'arrows'],
+  ArrowLeft: ['left', 'arrows'],
+  ArrowRight: ['right', 'arrows'],
+  Enter: ['confirm', 'arrows'],
+  NumpadEnter: ['confirm', 'arrows'],
+  ControlRight: ['confirm', 'arrows'],
+  Escape: ['back', 'kb'],
+  Backspace: ['back', 'kb'],
 };
 
 /** Forget key presses that happened before now (a screen change must not act on keys pressed during the race). */
 export function clearPressed() {
   pressed.clear();
+  menuQueue.length = 0;
   padMenuHeld.clear();
-  const pads = navigator.getGamepads?.() ?? [];
-  pads.forEach((p, i) => {
-    if (p?.connected) for (const [k, held] of padMenuState(p)) if (held) padMenuHeld.add(`${i}:${k}`);
-  });
+  for (const p of connectedPads()) for (const [k, held] of padMenuState(p)) if (held) padMenuHeld.add(`${p.index}:${k}`);
 }
 
 const padMenuHeld = new Set<string>();
@@ -127,24 +219,23 @@ function padMenuState(p: Gamepad): [string, boolean][] {
   ];
 }
 
-/** Menu presses since the last call (keyboard + every pad, edge-triggered). Consumes the keyboard presses. */
+/** Menu presses since the last call (keyboard + every pad, edge-triggered, with their source). Consumes the keyboard presses. */
 export function drainMenu(): MenuEvent[] {
   const out: MenuEvent[] = [];
-  for (const code of pressed) {
-    const key = MENU_CODES[code];
+  for (const code of menuQueue) {
+    const m = MENU_CODES[code];
     const letter = /^Key[A-Z]$/.test(code) ? code.slice(3) : undefined;
-    if (key || letter) out.push({ key, letter });
+    if (m || letter) out.push({ key: m?.[0], letter, src: m?.[1] ?? 'kb' });
   }
+  menuQueue.length = 0;
   pressed.clear();
-  const pads = navigator.getGamepads?.() ?? [];
-  pads.forEach((p, i) => {
-    if (!p?.connected) return;
+  for (const p of connectedPads()) {
     for (const [k, held] of padMenuState(p)) {
-      const id = `${i}:${k}`;
-      if (held && !padMenuHeld.has(id)) out.push({ key: k as MenuKey });
+      const id = `${p.index}:${k}`;
+      if (held && !padMenuHeld.has(id)) out.push({ key: k as MenuKey, src: `pad${p.index}` });
       if (held) padMenuHeld.add(id);
       else padMenuHeld.delete(id);
     }
-  });
+  }
   return out;
 }
