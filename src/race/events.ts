@@ -26,7 +26,13 @@ export interface GameEvents {
   pickup: { truck: number; kind: 'money' | 'nitro'; value: number };
   /** Race flow: 'ready' (Get Ready!), 'countdown', 'racing', 'results'. */
   phase: { phase: 'ready' | 'countdown' | 'racing' | 'results' };
+  /** The game's screen changed (game/flow.ts). A standalone ?scene=race never sends these. */
+  screen: { name: ScreenName };
 }
+
+/** The flow's screens: the attract loop (title, hints), sign-up, get ready, the race and its results, the shop,
+ *  continue and game over. */
+export type ScreenName = 'title' | 'hints' | 'register' | 'getready' | 'race' | 'results' | 'shop' | 'continue' | 'gameover';
 
 type Handler<T> = (e: T) => void;
 

@@ -36,6 +36,9 @@ const CSS = `
 .or-results .plate .who { color: #fff; }
 .or-results .plate .dim { color: #aab; }
 .or-results .cash { font-size: 13px; color: #ffe14a; }
+.or-results .note { font-size: 18px; letter-spacing: 2px; animation: or-blink .6s steps(2) 6; }
+.or-results .note.free { color: #5cff6a; }
+.or-results .note.lost { color: #ff5a4a; }
 .or-results .again { font-size: 12px; color: #fff; animation: or-blink 1s steps(2) infinite; }
 @keyframes or-blink { 50% { opacity: .25; } }
 @media (max-width: 960px) { .or-results .col, .or-results .plate { width: 22vw; } .or-results .plate { font-size: 8px; } .or-results .title { font-size: 18px; } }
@@ -61,6 +64,11 @@ export class ResultsScreen {
     record: RaceRecord | null;
     newRecord: boolean;
     cash: number;
+    /** Season: FREE RACE! / CREDIT LOST and the credits left. */
+    note?: { text: string; kind: 'free' | 'lost' };
+    credits?: number;
+    /** The blinking prompt at the bottom. */
+    prompt?: string;
   }) {
     const me = o.results[0];
     // Podium order: 2nd, 1st, 3rd, 4th (the winner raised in the middle).
@@ -79,7 +87,7 @@ export class ResultsScreen {
     const plates = order
       .map((r) => {
         const e = o.entries[r.slot];
-        const who = r.slot === 0 ? `YOU<br>&nbsp;` : `${e.nick}<br>${e.name}`;
+        const who = e.human ? `${e.nick}<br>${e.name}` : r.slot === 0 ? `YOU<br>&nbsp;` : `${e.nick}<br>${e.name}`;
         return `<div class="plate" style="--c:${e.hex}"><div class="place">${ORDINAL[r.place - 1]} Place</div>
             <div class="money">${money(r.prize)}${r.bags ? ` + ${money(r.bags)}` : ''}</div>
             <div class="who">${who}</div>
@@ -88,12 +96,15 @@ export class ResultsScreen {
       })
       .join('');
     const rec = o.record ? `Record (${o.record.who}): ${o.record.time.toFixed(2)}` : 'Record: --.--';
+    const me_ = o.entries[0];
+    const you = me_?.human ? me_.nick : 'YOU';
     this.el.innerHTML = `<div class="title">${o.track.toUpperCase()}</div>
-      <div class="times">YOU Finish Time: ${secs(me.time)}<br><span class="${o.newRecord ? 'new' : 'rec'}">${rec}${o.newRecord ? ' NEW!' : ''}</span></div>
+      <div class="times">${you} Finish Time: ${secs(me.time)}<br><span class="${o.newRecord ? 'new' : 'rec'}">${rec}${o.newRecord ? ' NEW!' : ''}</span></div>
       <div class="podium">${cols}</div>
       <div class="plates">${plates}</div>
-      <div class="cash">You won ${money(me.prize + me.bags)} &nbsp; Cash ${money(o.cash)}</div>
-      <div class="again">PRESS ENTER OR (A) TO RACE AGAIN</div>`;
+      ${o.note ? `<div class="note ${o.note.kind}">${o.note.text}</div>` : ''}
+      <div class="cash">You won ${money(me.prize + me.bags)} &nbsp; Cash ${money(o.cash)}${o.credits !== undefined ? ` &nbsp; Credits ${o.credits}` : ''}</div>
+      <div class="again">${o.prompt ?? 'PRESS ENTER OR (A) TO RACE AGAIN'}</div>`;
     this.parent.appendChild(this.el);
   }
 

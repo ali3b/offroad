@@ -15,7 +15,12 @@ export function createStage(parent: HTMLElement): Stage {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   parent.appendChild(renderer.domElement);
+  const { scene, sun } = createScene();
+  return { renderer, scene, sun };
+}
 
+/** A fresh scene with the background and lights (one per race; the renderer is shared). */
+export function createScene(): { scene: THREE.Scene; sun: THREE.DirectionalLight } {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#2a1d14');
 
@@ -35,5 +40,5 @@ export function createStage(parent: HTMLElement): Stage {
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.04;
   scene.add(sun, sun.target);
-  return { renderer, scene, sun };
+  return { scene, sun };
 }
