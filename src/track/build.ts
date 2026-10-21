@@ -300,31 +300,35 @@ function waterMeshes(t: TrackData) {
   const out: THREE.Mesh[] = [];
   for (const z of t.zones) {
     if (z.type !== 'water') continue;
-    const mat = new THREE.MeshStandardMaterial({ color: '#4f8fc4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.82 });
+    const matOpts = { color: '#4f8fc4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.82 };
+    const mat = new THREE.MeshStandardMaterial(matOpts);
     if (z.shape === 'path') {
-      // A creek: a flat sheet at the water level, kept where it's inside the band (fine cells, so the banks are smooth).
-      const [x0, z0, x1, z1] = zoneBox(z);
-      const cell = 0.35;
-      const nx = Math.ceil((x1 - x0) / cell);
-      const nz = Math.ceil((z1 - z0) / cell);
+      // A creek: a flat ribbon at the water level along the polyline (resampled every 0.5 m, mitred at the bends).
+      const pts: XZ[] = [];
+      for (let k = 0; k < z.points.length - 1; k++) {
+        const [ax, az] = z.points[k];
+        const [bx, bz] = z.points[k + 1];
+        const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 0.5));
+        for (let i = 0; i < n; i++) pts.push([ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n]);
+      }
+      pts.push(z.points[z.points.length - 1]);
       const pos: number[] = [];
       const idx: number[] = [];
-      for (let i = 0; i <= nz; i++) for (let j = 0; j <= nx; j++) pos.push(x0 + j * cell, z.level, z0 + i * cell);
-      const inside = (k: number) => zoneR(z, pos[k * 3], pos[k * 3 + 2]) <= 1.02;
-      for (let i = 0; i < nz; i++)
-        for (let j = 0; j < nx; j++) {
-          const a = i * (nx + 1) + j;
-          const b = a + 1;
-          const c = a + nx + 1;
-          const d = c + 1;
-          if (inside(a) && inside(b) && inside(c)) idx.push(a, c, b);
-          if (inside(b) && inside(c) && inside(d)) idx.push(b, c, d);
-        }
+      pts.forEach((p, i) => {
+        const a = pts[Math.max(0, i - 1)];
+        const b = pts[Math.min(pts.length - 1, i + 1)];
+        const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const nx = (b[1] - a[1]) / l;
+        const nz = -(b[0] - a[0]) / l;
+        const r = z.width / 2;
+        pos.push(p[0] + nx * r, z.level, p[1] + nz * r, p[0] - nx * r, z.level, p[1] - nz * r);
+        if (i > 0) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i, 2 * i - 1, 2 * i + 1);
+      });
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       geo.setIndex(idx);
       geo.computeVertexNormals();
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ ...matOpts, side: THREE.DoubleSide }));
       mesh.receiveShadow = true;
       mesh.name = 'water';
       out.push(mesh);

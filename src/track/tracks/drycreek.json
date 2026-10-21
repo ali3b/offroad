@@ -8,7 +8,7 @@
   "palette": {"dirt": "#bd8442", "dirtDark": "#7d5226", "dirtLight": "#d6a464", "ridge": "#e3b993", "wallA": "#2d64b8", "wallB": "#eeeae0", "flag": "#f0c020", "backWall": "#8fa6c9", "accent": "#d0a020"},
   "features": [
     {"type": "bridge", "x": -5, "z": 9, "heading": 0, "width": 11, "height": 1.6, "ramp": 5, "under": {"heading": 1.5708, "width": 10, "depth": 1.8, "ramp": 7}},
-    {"type": "ridge", "points": [[6.59, -27], [5.62, -21], [3.67, -15.5], [2.69, -10], [3.67, -4], [5.13, -1]], "width": 5.5, "height": -0.55},
+    {"type": "ridge", "points": [[6.35, -25.2], [5.62, -21], [3.67, -15.5], [2.69, -10], [3.67, -4], [5.13, -1]], "width": 5.5, "height": -0.55},
     {"type": "bank", "points": [[-22, -20.5], [-34.5, -18.5], [-36, -6]], "width": 10, "height": 1.5, "side": -1},
     {"type": "dip", "x": 25.5, "z": -21, "rx": 4.5, "rz": 3.8, "depth": 0.7},
     {"type": "whoops", "x": 15, "z": 2, "heading": 3.1416, "length": 6, "width": 10, "wavelength": 2.6, "amp": 0.22},
@@ -28,7 +28,7 @@
     {"kind": "tyres", "closed": false, "points": [[-39.5, 14], [-10.5, 14]]}
   ],
   "zones": [
-    {"type": "water", "shape": "path", "points": [[6.59, -27], [5.62, -21], [3.67, -15.5], [2.69, -10], [3.67, -4], [5.13, -1]], "width": 3.6, "level": -0.3, "drag": 0.8},
+    {"type": "water", "shape": "path", "points": [[6.35, -25.2], [5.62, -21], [3.67, -15.5], [2.69, -10], [3.67, -4], [5.13, -1]], "width": 3.6, "level": -0.3, "drag": 0.5},
     {"type": "water", "shape": "ellipse", "x": 5.13, "z": -1, "rx": 3, "rz": 2.2, "level": -0.3, "drag": 1.1},
     {"type": "mud", "shape": "ellipse", "x": 25.5, "z": -21, "rx": 3.6, "rz": 3, "drag": 0.5, "grip": 0.6}
   ],
