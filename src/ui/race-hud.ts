@@ -92,6 +92,15 @@ export class RaceHud {
     const s = Math.max(0.6, Math.min(1.6, window.innerWidth / 1280));
     this.panel.style.transform = `translate(-50%, -50%) scale(${s})`;
     this.name.style.fontSize = `${Math.round(20 * s)}px`;
+    // On a small screen the anchors close up faster than the panel shrinks: slide the name out from under the panel
+    // (to the left when it sits left of the panel's centre, else to the right).
+    const p = this.panel.getBoundingClientRect();
+    const n = this.name.getBoundingClientRect();
+    if (p.width && n.width && n.right > p.left && n.left < p.right && n.bottom > p.top && n.top < p.bottom) {
+      const left = n.left + n.width / 2 < p.left + p.width / 2;
+      const dx = left ? p.left - 6 - n.right : p.right + 6 - n.left;
+      this.name.style.left = `${parseFloat(this.name.style.left) + dx}px`;
+    }
   }
 
   /** `trucks` in HUD colour order (red, yellow, blue, grey); null = that colour isn't racing. */

@@ -54,6 +54,19 @@ const CSS = `
 @keyframes or-blink { 50% { opacity: .25; } }
 @media (max-width: 960px) { .or-results .podium3d { width: calc(88vw + 42px); height: 28vw; }
   .or-results .col, .or-results .plate { width: 22vw; } .or-results .plate { font-size: 8px; } .or-results .title { font-size: 18px; } }
+@media (max-height: 560px) {
+  .or-results { gap: 5px; justify-content: flex-start; padding-top: max(6px, env(safe-area-inset-top)); }
+  .or-results .title { font-size: 14px; }
+  .or-results .times { font-size: 8px; line-height: 1.8; padding: 4px 12px; border-width: 2px; }
+  .or-results .podium3d, .or-results.many .podium3d { height: 30vh; width: min(88vw, 70vh * 3.07); margin: -2px 0 -4px; }
+  .or-results .plates { margin-top: -4px; gap: 6px; }
+  .or-results .col, .or-results .plate { width: min(22vw, 170px); }
+  .or-results .plate { font-size: 6px; line-height: 1.7; padding: 4px; margin-top: 2px; border-width: 2px; }
+  .or-results .plate .place { font-size: 8px; }
+  .or-results .note { font-size: 11px; }
+  .or-results .cash, .or-results .again { font-size: 9px; }
+  .or-results .human { font-size: 6px; padding: 3px 6px; } .or-results .human .nm { font-size: 8px; }
+}
 `;
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th'];
@@ -67,6 +80,9 @@ export class ResultsScreen {
     addStyle('or-results-css', CSS);
     this.el.className = 'or-results';
     this.el.id = 'or-results';
+    // A tap anywhere goes on (ui/touch/mobile.ts turns it into a confirm press).
+    this.el.dataset.tap = 'results';
+    this.el.dataset.key = 'confirm';
   }
 
   show(o: {
@@ -79,8 +95,9 @@ export class ResultsScreen {
     /** Season: FREE RACE! / CREDIT LOST and the credits left. */
     note?: { text: string; kind: 'free' | 'lost' };
     credits?: number;
-    /** The blinking prompt at the bottom. */
+    /** The blinking prompt at the bottom (keys / pads), and the touch one. */
     prompt?: string;
+    touchPrompt?: string;
     /** Local multiplayer (2+ humans): one summary per human instead of the single note / cash line. */
     humans?: { slot: number; nick: string; hex: string; cash: number; credits: number; note?: { text: string; kind: 'free' | 'lost' } }[];
   }) {
@@ -132,7 +149,8 @@ export class ResultsScreen {
       ${in3d ? '<div class="podium3d"></div>' : `<div class="podium">${cols}</div>`}
       <div class="plates">${plates}</div>
       ${summary}
-      <div class="again">${o.prompt ?? 'PRESS ENTER OR (A) TO RACE AGAIN'}</div>`;
+      <div class="again kb-only">${o.prompt ?? 'PRESS ENTER OR (A) TO RACE AGAIN'}</div>
+      <div class="again touch-only">${o.touchPrompt ?? 'TAP TO RACE AGAIN'}</div>`;
     this.parent.appendChild(this.el);
     if (in3d)
       podiumView().show(

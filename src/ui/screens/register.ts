@@ -35,6 +35,45 @@ const CSS = `
 .or-reg .boss { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 9px; color: #c9ccd2; }
 .or-ready .panel .go { font-size: 30px; color: #ffe14a; line-height: 1.5; }
 .or-ready .panel canvas { border: 3px solid #000; width: 100%; max-width: 300px; height: auto; image-rendering: pixelated; }
+.or-reg .lp { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.or-reg .lp .row { display: flex; gap: 10px; }
+.or-reg .lp .ar { width: 54px; height: 38px; display: flex; align-items: center; justify-content: center; font-size: 16px;
+  background: rgba(0,0,0,.38); border: 3px solid #000; box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); color: #fff; }
+.or-reg .lp .ar:active { background: rgba(255,255,255,.35); }
+.or-reg .tbtns { display: flex; gap: 10px; margin-top: auto; }
+.or-reg .tb { min-height: 44px; min-width: 96px; padding: 0 12px; display: flex; align-items: center; justify-content: center; font-size: 11px;
+  background: #1b1b22; border: 3px solid #000; box-shadow: inset 0 0 0 2px rgba(255,255,255,.3), 3px 3px 0 rgba(0,0,0,.45); color: #fff; }
+.or-reg .tb.ok { background: #1d7a2a; }
+.or-reg .tb.big { font-size: 13px; min-width: 150px; }
+.or-reg .tb.leave { position: absolute; z-index: 2; left: calc(env(safe-area-inset-left) + 10px); top: 18px; }
+@media (max-height: 560px) { .or-reg .tb.leave { top: 2px; min-height: 38px; } }
+.or-reg .arrows .ar { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; vertical-align: middle;
+  background: rgba(0,0,0,.38); border: 3px solid #000; box-shadow: inset 0 0 0 2px rgba(255,255,255,.3); }
+.or-reg .arrows .truck-ico { vertical-align: middle; }
+.or-reg .panel.open .tapjoin { font-size: 15px; line-height: 1.7; color: #fff; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+  animation: or-reg-join 1.2s steps(2) infinite; }
+.or-reg .panel.open .tappick { font-size: 11px; line-height: 1.8; color: #fff; }
+@media (max-height: 560px) {
+  .or-reg .panels { padding: 8px 12px 26px; gap: 10px; }
+  .or-reg .panel { padding: 8px 6px; gap: 6px; }
+  .or-reg .panel .who { font-size: 10px; line-height: 1.5; }
+  .or-reg .panel .step { font-size: 8px; line-height: 1.6; }
+  .or-reg .panel .initials { gap: 8px; }
+  .or-reg .panel .initials span { width: 44px; height: 44px; font-size: 24px; }
+  .or-reg .lp .ar { width: 44px; height: 34px; font-size: 12px; }
+  .or-reg .lp .row { gap: 8px; }
+  .or-reg .panel .help { font-size: 7px; line-height: 1.8; }
+  .or-reg .panel .join, .or-reg .panel.open .tapjoin { font-size: 11px; }
+  .or-reg .panel .ready { font-size: 16px; }
+  .or-reg .truck-ico { width: 84px; height: 45px; }
+  .or-reg .panel .trophy { width: 22%; }
+  .or-reg .foot { bottom: 12px; font-size: 7px; } .or-reg .foot.go { font-size: 10px; }
+  .or-reg .boss { display: none; }
+  .or-reg .tb { min-height: 42px; min-width: 84px; font-size: 9px; } .or-reg .tb.big { font-size: 11px; min-width: 120px; }
+  .or-reg .arrows .ar { width: 44px; height: 44px; }
+  .or-ready .panel .go { font-size: 18px; }
+  .or-ready .panel canvas { max-width: 200px; }
+}
 `;
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
@@ -48,12 +87,17 @@ function cpuPanel(c: Colour) {
     <div class="who">CPU DRIVER</div>${truckIcon(HEX[c])}<div class="who">${d.nick}<br><span class="small">${d.name}</span></div>${trophyIcon()}</div>`;
 }
 
-/** An open panel at the sign-up: PRESS START TO JOIN over the CPU driver who takes it otherwise. */
-function openPanel(c: Colour) {
+/**
+ * An open panel at the sign-up: PRESS START TO JOIN over the CPU driver who takes it otherwise. By touch: TAP TO
+ * JOIN when nobody joined yet (a touch player is player 1), or TAP TO PICK while the touch player picks a colour.
+ */
+function openPanel(c: Colour, touch: 'join' | 'pick' | null) {
   const d = CPU_DRIVERS[c];
-  return `<div class="panel cpu open" data-colour="${c}" style="background:${PANEL[c].bg};color:${PANEL[c].text}">
-    <div class="join">PRESS START<br>TO JOIN</div>
-    <div class="small">W / L.SHIFT &middot; &uarr; / ENTER<br>OR (A) ON A PAD</div>
+  const tap = touch === 'join' ? `data-tap="join:${c}"` : touch === 'pick' ? `data-tap="pick:${c}"` : '';
+  const tapText = touch === 'join' ? '<div class="tapjoin touch-only">TAP TO<br>JOIN</div>' : touch === 'pick' ? '<div class="tappick touch-only">TAP TO PICK<br>THIS TRUCK</div>' : '';
+  return `<div class="panel cpu open" data-colour="${c}" ${tap} style="background:${PANEL[c].bg};color:${PANEL[c].text}">
+    <div class="kb-only join">PRESS START<br>TO JOIN</div>${tapText}
+    <div class="small kb-only">W / L.SHIFT &middot; &uarr; / ENTER<br>OR (A) ON A PAD</div>
     ${truckIcon(HEX[c])}<div class="who"><span class="small">ELSE CPU</span><br>${d.nick}<br><span class="small">${d.name}</span></div>${trophyIcon()}</div>`;
 }
 
@@ -76,6 +120,7 @@ export interface SignUp {
 const KEYBOARD: MenuSrc[] = ['wasd', 'arrows', 'kb'];
 
 function deviceLabel(src: MenuSrc, alone: boolean) {
+  if (src === 'touch') return 'TOUCH SCREEN';
   if (src.startsWith('pad')) return `GAMEPAD ${Number(src.slice(3)) + 1}`;
   if (alone) return KEY_SCHEMES.solo.label;
   return src === 'wasd' ? KEY_SCHEMES.wasd.label : src === 'arrows' ? KEY_SCHEMES.arrows.label : 'KEYBOARD';
@@ -128,12 +173,15 @@ export class RegisterScreen implements Screen {
 
   private draw() {
     const alone = this.cards.length <= 1;
+    const touchCard = this.cards.find((c) => c.src === 'touch');
+    const openTouch = !this.cards.length ? 'join' : touchCard && touchCard.step !== 'ready' ? 'pick' : null;
     const panels = PLAYER_COLOURS.map((c) => {
       const i = this.cards.findIndex((x) => x.colour === c);
-      if (i < 0) return openPanel(c);
+      if (i < 0) return openPanel(c, openTouch);
       const card = this.cards[i];
       const p = PANEL[c];
       const boxes = card.letters.map((l, j) => `<span class="${card.step === 'initials' && j === card.cur ? 'cur' : ''}">${l === ' ' ? '&nbsp;' : esc(l)}</span>`).join('');
+      if (card.src === 'touch') return this.touchPanel(card, i, boxes);
       const pad = card.src.startsWith('pad');
       // The card's own start key.
       const ok = pad ? '(A)' : alone || card.src !== 'wasd' ? 'ENTER' : 'L.SHIFT';
@@ -153,15 +201,77 @@ export class RegisterScreen implements Screen {
     const boss = CPU_DRIVERS.grey;
     const allReady = this.cards.length > 0 && this.cards.every((c) => c.step === 'ready');
     const foot = allReady
-      ? `<div class="foot go blink">ALL SET! PRESS START TO RACE</div>`
-      : `<div class="foot">UP TO 3 PLAYERS &middot; JOIN WITH <span class="key">W</span> OR <span class="key">L.SHIFT</span> (WASD), <span class="key">&uarr;</span> OR <span class="key">ENTER</span> (ARROWS), <span class="key">(A)</span> ON A PAD</div>`;
-    this.el.innerHTML = `${banner('DRIVER <i>SIGN-UP</i>')}<div class="panels">${panels}</div>${foot}
+      ? `<div class="foot go blink">ALL SET! <span class="kb-only">PRESS START</span><span class="touch-only">TAP START</span> TO RACE</div>`
+      : `<div class="foot"><span class="kb-only">UP TO 3 PLAYERS &middot; JOIN WITH <span class="key">W</span> OR <span class="key">L.SHIFT</span> (WASD), <span class="key">&uarr;</span> OR <span class="key">ENTER</span> (ARROWS), <span class="key">(A)</span> ON A PAD</span>
+        <span class="touch-only">${this.cards.length ? 'MORE PLAYERS JOIN WITH KEYS OR PADS' : 'TAP A TRUCK TO JOIN &middot; MORE PLAYERS JOIN WITH KEYS OR PADS'}</span></div>`;
+    const leave = !this.cards.length ? '<div class="tb leave touch-only" data-tap="leave">&#9664; BACK</div>' : '';
+    this.el.innerHTML = `${banner('DRIVER <i>SIGN-UP</i>')}${leave}<div class="panels">${panels}</div>${foot}
       <div class="boss">THE GREY TRUCK IS ALWAYS ${boss.nick} ${boss.name.toUpperCase()}, THE CPU BOSS</div>`;
   }
 
+  /** The touch player's card: the letter picker (▲ / ▼ per letter), the colour arrows, OK / READY / START buttons. */
+  private touchPanel(card: Card, i: number, boxes: string) {
+    const c = card.colour;
+    const head = `<div class="who">PLAYER ${i + 1}</div><div class="dev">${deviceLabel('touch', true)}</div>`;
+    let body: string;
+    if (card.step === 'initials') {
+      const arrows = (dir: 'up' | 'down') =>
+        `<div class="row">${[0, 1, 2].map((j) => `<div class="ar" data-tap="${dir}:${j}" data-repeat>${dir === 'up' ? '&#9650;' : '&#9660;'}</div>`).join('')}</div>`;
+      const letters = card.letters
+        .map((l, j) => `<span class="${j === card.cur ? 'cur' : ''}" data-tap="cur:${j}">${l === ' ' ? '&nbsp;' : esc(l)}</span>`)
+        .join('');
+      body = `<div class="step">YOUR INITIALS</div><div class="lp">${arrows('up')}<div class="initials">${letters}</div>${arrows('down')}</div>
+        <div class="tbtns"><div class="tb" data-tap="back">&#9664; BACK</div><div class="tb ok" data-tap="ok">OK &#9654;</div></div>`;
+    } else if (card.step === 'colour') {
+      body = `<div class="initials done">${boxes}</div><div class="step">PICK YOUR TRUCK</div>
+        <div class="arrows"><span class="ar" data-tap="colour:-1">&#9664;</span> ${truckIcon(HEX[c])} <span class="ar" data-tap="colour:1">&#9654;</span></div>
+        <div class="tbtns"><div class="tb" data-tap="back">&#9664; BACK</div><div class="tb ok" data-tap="ok">READY &#9654;</div></div>`;
+    } else {
+      const all = this.cards.every((x) => x.step === 'ready');
+      body = `<div class="initials done">${boxes}</div>${truckIcon(HEX[c])}<div class="ready">READY!</div>
+        <div class="tbtns"><div class="tb" data-tap="back">CHANGE</div>${all ? '<div class="tb ok big pulse" data-tap="ok">START &#9654;</div>' : '<div class="tb">WAITING&hellip;</div>'}</div>`;
+    }
+    return `<div class="panel me" data-colour="${c}" data-player="${i + 1}" style="background:${PANEL[c].bg};color:${PANEL[c].text}">${head}${body}</div>`;
+  }
+
   input(e: MenuEvent) {
-    this.handle(e);
+    if (e.tap) this.tap(e.tap);
+    else this.handle(e);
     this.draw();
+  }
+
+  /** A tap (touch is always player 1, so it only joins when nobody has). */
+  private tap(t: string) {
+    const [what, arg] = t.split(':');
+    if (what === 'leave') return this.o.onBack();
+    if (what === 'join') {
+      if (this.cards.length) return;
+      this.join('touch');
+      if (PLAYER_COLOURS.includes(arg as Colour)) this.cards[0].colour = arg as Colour;
+      return;
+    }
+    const card = this.cards.find((c) => c.src === 'touch');
+    if (!card) return;
+    const j = Number(arg);
+    if (what === 'up' || what === 'down') {
+      if (card.step !== 'initials') return;
+      card.cur = j;
+      this.cardInput(card, what);
+    } else if (what === 'cur') {
+      if (card.step === 'initials') card.cur = j;
+    } else if (what === 'colour') {
+      if (card.step === 'colour') this.cardInput(card, j < 0 ? 'left' : 'right');
+    } else if (what === 'pick') {
+      const c = arg as Colour;
+      if (card.step !== 'ready' && this.free(c, card)) card.colour = c;
+    } else if (what === 'ok') {
+      if (card.step === 'initials') card.step = 'colour';
+      else this.cardInput(card, 'confirm');
+    } else if (what === 'back') {
+      // BACK leaves the sign-up from the initials (the arrows move the cursor, not BACK).
+      if (card.step === 'initials') this.cards.splice(this.cards.indexOf(card), 1);
+      else this.cardInput(card, 'back');
+    }
   }
 
   private handle(e: MenuEvent) {
