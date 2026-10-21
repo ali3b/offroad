@@ -17,6 +17,7 @@ import type { TruckModels } from '../race/models';
 import type { TrackData } from '../track/types';
 import { RaceHud } from '../ui/race-hud';
 import { ResultsScreen } from '../ui/results';
+import { retro } from '../engine/retro';
 
 export type RaceMode = 'test' | 'race' | 'season' | 'demo';
 
@@ -140,7 +141,8 @@ export class RaceScene {
       else this.hud.setBanner(null);
     } else this.hud.update(0, [{ lap: 1, nitros: s.truck.nitros }]);
     this.hud.tick(frameDt, this.camera);
-    renderer.render(this.scene, this.camera);
+    // Straight to the screen, or through the DOS-look pass (F2, engine/retro.ts).
+    retro.render(renderer, this.scene, this.camera);
   }
 
   /** Raycast the physics ground at sample points and compare with the height grid (catches a transposed field). */

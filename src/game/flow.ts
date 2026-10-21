@@ -29,6 +29,8 @@ import { ContinueScreen, GameOverScreen } from '../ui/screens/continue';
 import { money } from './economy';
 import { ResultsScreen } from '../ui/results';
 import { podiumView } from '../ui/podium-view';
+import { cycleDosLook, dosLabel, getSettings, setSettings } from '../engine/retro';
+import { toast } from '../ui/toast';
 import { PRIZES, ROSTER } from '../race/roster';
 
 export type FlowState = ScreenName | 'standalone' | 'loading';
@@ -323,6 +325,7 @@ export class Flow {
 
   private render(frameDt: number) {
     if (wasPressed('F3')) this.debug.toggle();
+    if (wasPressed('F2')) toast(`DOS LOOK: ${dosLabel(cycleDosLook())}`);
     const st = this.state;
     // Menus: every press goes to the screen; the results podium waits for confirm.
     if (st === 'standalone') {
@@ -388,6 +391,11 @@ export class Flow {
       resultsVisible: () => !!this.race?.results.visible,
       /** The results screen's 3D podium (ui/podium-view.ts): stop(), tick(dt), info. */
       podium: () => podiumView(),
+      /** The saved settings (localStorage or.settings): get, or set e.g. { dos: true, palette: 16 }. */
+      settings: (s?: Partial<ReturnType<typeof getSettings>>) => {
+        if (s) setSettings({ ...getSettings(), ...s });
+        return getSettings();
+      },
       /** The grandstand fans: cheer(s), cheering, drawCalls(), ready. */
       crowd: () => scene().session.crowd,
       /** The race scene's camera (tools: close-ups for screenshots; a resize re-fits it). */

@@ -6,7 +6,7 @@ const pressed = new Set<string>();
 
 export function initKeyboard() {
   window.addEventListener('keydown', (e) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3', 'Backspace'].includes(e.code)) e.preventDefault();
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F2', 'F3', 'Backspace'].includes(e.code)) e.preventDefault();
     if (!held.has(e.code)) pressed.add(e.code);
     held.add(e.code);
   });

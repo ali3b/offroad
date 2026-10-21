@@ -5,6 +5,7 @@ import { addStyle, PIXEL_FONT } from '../pixel';
 import type { MenuEvent } from '../../engine/input';
 import { hintsHtml } from './hints';
 import { screenEl, type Screen } from './common';
+import { cycleDosLook, dosLabel, onSettings } from '../../engine/retro';
 
 const CSS = `
 .or-title { display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
@@ -47,14 +48,18 @@ export class TitleScreen implements Screen {
   readonly el = screenEl('or-title', false);
   private sel = 0;
   private idle = 0;
-  private items: { id: 'new' | 'continue'; html: string }[];
+  private items: { id: 'new' | 'continue' | 'dos'; html: string }[];
+  private offSettings: () => void;
 
   constructor(private o: TitleOpts) {
     addStyle('or-title-css', CSS);
     this.items = [
       ...(o.save ? [{ id: 'continue' as const, html: `CONTINUE SEASON<small>${o.save}</small>` }] : []),
       { id: 'new', html: 'NEW SEASON' },
+      { id: 'dos', html: '' },
     ];
+    // F2 changes the setting anywhere; keep the menu line in step.
+    this.offSettings = onSettings(() => this.draw());
     const logo = [...'OFF ROAD'].map((ch) => (ch === ' ' ? '<span class="sp"></span>' : `<span>${ch}</span>`)).join('');
     this.el.innerHTML = `
       <div class="top"><div class="or-logo">${logo}</div>
@@ -74,7 +79,8 @@ export class TitleScreen implements Screen {
   }
 
   private draw() {
-    this.el.querySelector('.menu')!.innerHTML = this.items.map((it, i) => `<div class="${i === this.sel ? 'sel' : ''}" data-id="${it.id}">${it.html}</div>`).join('');
+    const html = (it: (typeof this.items)[number]) => (it.id === 'dos' ? `DOS LOOK: ${dosLabel()}<small>F2 ANY TIME &middot; LOW RES, PALETTE, SCANLINES</small>` : it.html);
+    this.el.querySelector('.menu')!.innerHTML = this.items.map((it, i) => `<div class="${i === this.sel ? 'sel' : ''}" data-id="${it.id}">${html(it)}</div>`).join('');
   }
 
   input(e: MenuEvent) {
@@ -86,7 +92,8 @@ export class TitleScreen implements Screen {
       this.sel = (this.sel + (e.key === 'up' ? -1 : 1) + this.items.length) % this.items.length;
       this.draw();
     } else if (e.key === 'confirm') {
-      if (this.selected === 'continue') this.o.onContinue();
+      if (this.selected === 'dos') cycleDosLook();
+      else if (this.selected === 'continue') this.o.onContinue();
       else this.o.onNew();
     }
   }
@@ -99,6 +106,7 @@ export class TitleScreen implements Screen {
   }
 
   dispose() {
+    this.offSettings();
     this.el.remove();
   }
 }

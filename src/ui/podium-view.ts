@@ -8,6 +8,7 @@ import { CLIPS, Character, driverModel, loadCharacters } from '../race/character
 import { loadModel, loadTruckModels, modelIndex, type TruckModels } from '../race/models';
 import { TRUCK_LOOK, TruckView } from '../race/truck-view';
 import { COLOURS, type Colour } from '../race/roster';
+import { getSettings } from '../engine/retro';
 
 export interface PodiumEntry {
   place: number;
@@ -202,8 +203,13 @@ export class PodiumView {
   private resize() {
     const w = this.canvas.clientWidth || 900;
     const h = this.canvas.clientHeight || 260;
+    // The DOS look (F2): a third of the resolution, upscaled with hard pixels.
+    const dos = getSettings().dos;
+    const bw = dos ? Math.round(w / 3) : w;
+    const bh = dos ? Math.round(h / 3) : h;
     const size = this.renderer.getSize(new THREE.Vector2());
-    if (size.x !== w || size.y !== h) this.renderer.setSize(w, h, false);
+    if (size.x !== bw || size.y !== bh) this.renderer.setSize(bw, bh, false);
+    this.canvas.style.imageRendering = dos ? 'pixelated' : '';
     const aspect = w / h;
     // Fit 4 columns (4 × PITCH) across at the drivers' depth.
     const dist = 15;
