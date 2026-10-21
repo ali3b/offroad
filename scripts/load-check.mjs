@@ -1,0 +1,43 @@
+// Smoke check: the game boots a scene with no page or console errors and saves test-results/<scene>.png.
+//   node scripts/load-check.mjs [url] [scene]          (npm run dev first; default http://localhost:5199 test)
+// Headless Chromium on SwiftShader (software GL): the shared GPU stays free.
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+
+const url = (process.argv[2] ?? process.env.GAME_URL ?? 'http://localhost:5199').replace(/\/$/, '');
+const scene = process.argv[3] ?? 'test';
+const env = { ...process.env };
+delete env.DISPLAY;
+delete env.WAYLAND_DISPLAY;
+fs.mkdirSync('test-results', { recursive: true });
+const browser = await chromium.launch({ env, args: ['--headless=new', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+let ok = true;
+const fail = (msg) => {
+  ok = false;
+  console.log(`FAIL: ${msg}`);
+};
+
+try {
+  await page.goto(`${url}/?scene=${encodeURIComponent(scene)}`);
+  await page.waitForFunction(() => window.__or?.ready === true, null, { timeout: 90000 });
+  // A few real frames so the HUD and shadows are drawn.
+  await page.waitForFunction(() => window.__or.loop.steps > 120, null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const info = await page.evaluate(() => ({ truck: window.__or.truck(), ground: window.__or.groundCheck(), fps: window.__or.loop.fps }));
+  console.log(`${scene}: truck ${JSON.stringify(info.truck.pos)} contacts ${info.truck.contacts.map(Number).join('')} up.y ${info.truck.up.y.toFixed(3)}; ground error ${info.ground.toFixed(3)} m; ${info.fps.toFixed(0)} fps`);
+  if (!(info.ground < 0.2)) fail(`the physics heightfield does not match the height grid (max error ${info.ground} m)`);
+  if (info.truck.contacts.filter(Boolean).length < 4) fail('the parked truck is not on all four wheels');
+  if (info.truck.up.y < 0.95) fail('the parked truck is not upright');
+  await page.screenshot({ path: `test-results/${scene}.png` });
+  console.log(`saved test-results/${scene}.png`);
+} catch (e) {
+  fail(e.message);
+}
+for (const e of errors) fail(`page error: ${e}`);
+await browser.close();
+console.log(ok ? 'load-check OK' : 'load-check FAILED');
+process.exit(ok ? 0 : 1);

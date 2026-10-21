@@ -1,0 +1,66 @@
+{
+  "defaults": {
+    "texSize": 1024
+  },
+  "models": [
+    {
+      "name": "truck_red",
+      "asset": "POLYGON_Palm_City/SM_Veh_Pickup_Lift_01",
+      "tint": "#c8282a",
+      "origin": "axle-centre"
+    },
+    {
+      "name": "truck_blue",
+      "asset": "POLYGON_Palm_City/SM_Veh_Pickup_Lift_01",
+      "tint": "#2a52c8",
+      "origin": "axle-centre"
+    },
+    {
+      "name": "truck_yellow",
+      "asset": "POLYGON_Palm_City/SM_Veh_Pickup_Lift_01",
+      "tint": "#e8c020",
+      "origin": "axle-centre"
+    },
+    {
+      "name": "truck_grey",
+      "asset": "POLYGON_Palm_City/SM_Veh_Pickup_Lift_01",
+      "tint": "#8a8f96",
+      "origin": "axle-centre"
+    },
+    {
+      "name": "tire_wall",
+      "asset": "POLYGON_Apocalypse/SM_Prop_TireWall_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "tire_pile",
+      "asset": "POLYGON_Apocalypse/SM_Prop_Tire_Pile_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "barrel",
+      "asset": "POLYGON_Apocalypse/SM_Prop_Barrel_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "barrel_coloured",
+      "asset": "POLYGON_Apocalypse/SM_Prop_Barrel_Coloured_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "hay_bale",
+      "asset": "POLYGON_War/SM_Prop_Hay_Bale_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "start_lights",
+      "asset": "POLYGON_Palm_City/SM_Prop_Traffic_Light_01",
+      "origin": "bottom-centre"
+    },
+    {
+      "name": "barrier",
+      "asset": "POLYGON_Palm_City/SM_Prop_Barrier_01",
+      "origin": "bottom-centre"
+    }
+  ]
+}

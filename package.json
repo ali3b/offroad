@@ -1,0 +1,27 @@
+{
+  "name": "offroad",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Off Road: a 3D arcade off-road racer",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "assets": "node scripts/build-assets.mjs",
+    "check": "node scripts/load-check.mjs && node scripts/drive-check.mjs",
+    "drive": "node scripts/drive-check.mjs",
+    "record": "node scripts/record.mjs",
+    "deploy": "node scripts/deploy-pages.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2",
+    "@types/three": "0.186.0",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  }
+}
