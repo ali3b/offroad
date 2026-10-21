@@ -12,10 +12,12 @@ import { Hud } from './ui/hud';
 import { DebugOverlay } from './ui/debug';
 import type { TrackData } from './track/types';
 import testTrack from './track/test.json';
+// Audio: synthesised music + SFX (src/audio). attachAudio(bus) wires it to the race events; M mutes.
+import { getAudio } from './audio';
 
 const TRACKS: Record<string, TrackData> = { test: testTrack as TrackData };
-/** Scenes: `test` drives the placeholder truck on the test track. */
-const SCENES = ['test'] as const;
+/** Scenes: `test` drives the placeholder truck on the test track; `audio` is the sound bench (src/audio/dev-scene.ts). */
+const SCENES = ['test', 'audio'] as const;
 
 declare global {
   interface Window {
@@ -28,6 +30,12 @@ async function boot() {
   const sceneName = params.get('scene') ?? 'test';
   window.__or = { ready: false, scene: sceneName };
   if (!(SCENES as readonly string[]).includes(sceneName)) throw new Error(`unknown scene "${sceneName}" (have: ${SCENES.join(', ')})`);
+  if (sceneName === 'audio') {
+    const { startAudioScene } = await import('./audio/dev-scene');
+    startAudioScene(document.body);
+    window.__or.ready = true;
+    return;
+  }
 
   const stage = createStage(document.body);
   const world = await createWorld();
@@ -93,6 +101,7 @@ async function boot() {
     debug: (on?: boolean) => debug.toggle(on),
     groundCheck,
     heightAt: (x: number, z: number) => session.track.heightAt(x, z),
+    audio: getAudio(),
   });
   // A live getter (Object.assign would copy the value once).
   Object.defineProperty(window.__or, 'simTime', { get: () => loop.simTime, enumerable: true });
