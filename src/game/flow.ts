@@ -25,7 +25,7 @@ import { RAPIER } from '../physics/world';
 import { DebugOverlay } from '../ui/debug';
 import { RaceScene, type RaceSceneOpts } from './race-scene';
 import { buy, takeContinue, type ShopItem } from './economy';
-import { clearSeason, dropToCpu, entriesFor, loadSeason, modsBySlot, newSeason, nitrosBySlot, outPlayers, raceFor, saveSeason, settleRace, trackOrder, type NextRace, type SeasonState } from './season';
+import { clearSeason, dropToCpu, entriesFor, loadSeason, modsBySlot, newSeason, nitrosBySlot, outPlayers, raceFor, saveSeason, settleQuit, settleRace, trackOrder, type NextRace, type SeasonState } from './season';
 import type { Colour } from '../race/roster';
 import type { Screen } from '../ui/screens/common';
 import { TitleScreen } from '../ui/screens/title';
@@ -142,7 +142,17 @@ export class Flow {
     }
     this.closePause();
     if (c === 'restart') this.race?.restart();
-    else if (c === 'quit') void this.toTitle();
+    else if (c === 'quit') this.quitSeasonRace();
+  }
+
+  /** QUIT TO TITLE from a season race: every human counts as finishing last (credit lost, no prize), then the title. */
+  private quitSeasonRace() {
+    const r = this.race;
+    if (this.state === 'race' && this.season && r?.race && !r.resultsShown) {
+      this.season = settleQuit(this.season, r.session.racers.map((x) => x.truck.nitros), r.session.track.data.id);
+      saveSeason(this.season);
+    }
+    void this.toTitle();
   }
 
   // ---- scenes and screens --------------------------------------------------------------------------------------

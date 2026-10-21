@@ -731,7 +731,7 @@ for the colour, READY, START; BACK. Shop: a tile buys (START NEXT RACE starts), 
 anywhere. Continue: CONTINUE / GIVE UP. Game over: a tap. A standalone race's results restart on a tap.
 
 **Pause** (`ui/touch/pause.ts`): the II button top-left (touch mode), or Esc / P in a race; PAUSED with RESUME,
-SOUND on/off and QUIT TO TITLE (the season stays saved at the shop before the race; a standalone race has RESTART).
+SOUND on/off and QUIT TO TITLE (pressed twice; it counts as last place for every human: credit lost, no prize, the season moves on (`settleQuit`, so quitting is no way round a bad race); a standalone race has RESTART).
 The flow stops stepping physics and suspends the AudioContext. A race also pauses when the page is hidden or the
 device turns to portrait.
 

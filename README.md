@@ -76,7 +76,7 @@ Eight stadium tracks in season order, each also raced in reverse (`?scene=race&t
 |---|---|
 | Steer | the slide pad bottom-left: slide your left thumb; how far you slide is how hard you steer (press an end for full lock). A thumb anywhere else on the left half steers from where it lands |
 | Gas / brake, reverse / nitro | GAS, BRAKE and NITRO on the right; any touch on the right half that isn't on BRAKE or NITRO is gas. NITRO also gives gas, so roll your thumb onto it. Steer, gas and nitro work together (multi-touch) |
-| Pause | the II button top-left: RESUME, SOUND, QUIT TO TITLE (a standalone race: RESTART) |
+| Pause | the II button top-left: RESUME, SOUND, QUIT TO TITLE (twice; quitting a season race counts as last place. A standalone race: RESTART) |
 | Menus | tap: TAP TO START, the hints' NEXT, a truck panel to join, ▲ / ▼ for each initial, OK, ◀ ▶ for the colour, READY, START; a Speed Shop tile buys it; tap the results to go on |
 | Settings | the title's chips: DOS LOOK, QUALITY (auto / low / high), SOUND, VIBRATE (Android), and the fullscreen button |
 

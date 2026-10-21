@@ -151,6 +151,18 @@ export function settleRace(s: SeasonState, results: RacerResult[], nitrosLeft: n
   return next;
 }
 
+/**
+ * QUIT TO TITLE during a season race: it counts as finishing last for every human (quitters behind every CPU truck,
+ * so a credit is lost) with no prize and no money bags. The CPU trucks take the places ahead in line-up order with
+ * no winnings either; the season moves on as after any race. Nitros already spent stay spent.
+ */
+export function settleQuit(s: SeasonState, nitrosLeft: number[], trackId: string): SeasonState {
+  const lu = lineup(s);
+  const order = [...lu.filter((l) => l.kind === 'cpu'), ...lu.filter((l) => l.kind === 'player')].map((l) => lu.indexOf(l));
+  const results: RacerResult[] = order.map((slot, i) => ({ slot, place: i + 1, time: null, prize: 0, bags: 0, lapTimes: [], best: null, avg: null }));
+  return settleRace(s, results, nitrosLeft, trackId);
+}
+
 // ---- The track order -----------------------------------------------------------------------------------------
 
 const TRACK_ORDER_KEY = 'TRACK_ORDER';

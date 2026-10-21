@@ -3,7 +3,7 @@
 //   the shop between them (buy tires, check the truck's grip multiplier changed, start the next race and check its
 //   track and direction against the rotation rule); reload → "Continue season" → the shop with the same cash;
 //   then forced finishes for the credit rules: out of credits → CONTINUE? → continue (cash $0, upgrades kept),
-//   FREE RACE!, and out of credits again → countdown runs out → GAME OVER → title, save cleared.
+//   FREE RACE!, QUIT TO TITLE mid-race (counts as last: credit lost, no prize), and out of credits again → countdown runs out → GAME OVER → title, save cleared.
 //   node scripts/season-check.mjs [url]             (npm run dev first)
 // Screenshots: test-results/season-*.png
 import { chromium } from '@playwright/test';
@@ -220,6 +220,35 @@ try {
   check(s.player.credits === 3 && /FREE RACE!/.test(await text()), 'won: FREE RACE!, credits stay 3');
   check(s.player.cash === 100000 + (await page.evaluate(() => window.__or.raceState().results[0].bags)), 'won: $100,000 (+ bags) banked');
   await press('confirm');
+
+  // QUIT TO TITLE mid-race counts as last place: credit lost, no prize, the season moves on (no restart exploit).
+  s = await st();
+  const before = { cash: s.player.cash, credits: s.player.credits, race: s.race };
+  await shopGo('start');
+  await press('confirm');
+  await waitScreen('race');
+  await page.evaluate(() => window.__or.advance(4));
+  const paused = () => page.evaluate(() => window.__or.touch().paused);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__or.touch().paused === true, null, { timeout: 5000 });
+  const pauseText = () => page.evaluate(() => document.getElementById('or-pause').innerText);
+  check(/QUIT TO TITLE/.test(await pauseText()) && /QUITTING COUNTS AS LAST PLACE/.test(await pauseText()) && !/RESTART/.test(await pauseText()), 'season pause: QUIT TO TITLE, "quitting counts as last place", no RESTART');
+  const pauseHas = (re) => page.waitForFunction((r) => new RegExp(r).test(document.getElementById('or-pause').innerHTML), re, { timeout: 5000 }).catch(() => null);
+  await page.keyboard.press('ArrowUp');
+  await pauseHas('it quit sel');
+  await page.keyboard.press('Enter');
+  await pauseHas('SURE\\? QUIT');
+  const armed = { screen: (await st()).screen, paused: await paused(), text: await pauseText() };
+  check(armed.screen === 'race' && armed.paused && /SURE\? QUIT/.test(armed.text), `first QUIT press only arms it (SURE? QUIT): ${JSON.stringify(armed)}`);
+  await shot('quit-confirm');
+  await page.keyboard.press('Enter');
+  await waitScreen('title', 10000);
+  s = await st();
+  check(s.race === before.race + 1 && s.player.credits === before.credits - 1 && s.player.cash === before.cash, `quit: counted as last (race ${before.race + 1} → ${s.race + 1}, credits ${before.credits} → ${s.player.credits}, cash ${s.player.cash} unchanged)`);
+  check(s.last?.places?.[0] === 4 && s.last?.outcomes?.[0]?.creditLost === true, `quit: place ${s.last?.places?.[0]}, credit lost`);
+  check(/CONTINUE SEASON/.test(await text()), 'quit → title offers CONTINUE SEASON');
+  await press('confirm');
+  check((await st()).screen === 'shop', 'continue season after quitting → shop');
 
   await page.evaluate(() => window.__or.flow.patchPlayer({ credits: 1 }));
   s = await forcedRace([3, 2, 1, 0]);

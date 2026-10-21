@@ -1,5 +1,6 @@
 // The race's pause: a chunky II button in the top-left corner (touch mode) and, on Esc / P or a tap, the PAUSED
-// menu (RESUME, SOUND on/off, QUIT; a standalone race has RESTART instead of QUIT). The flow stops the physics while
+// menu (RESUME, SOUND on/off, QUIT; a standalone race has RESTART instead of QUIT). Quitting a season race counts as
+// last place for every human (credit lost, no prize), so QUIT takes a second press to confirm. The flow stops the physics while
 // it's up. Taps and keys both work: the menu reads the flow's menu presses (up / down / confirm / back) and its own
 // buttons' taps.
 import type { MenuEvent } from '../../engine/input';
@@ -23,6 +24,8 @@ body.or-touch .or-pausebtn.on { display: flex; }
 .or-pause .it.sel { color: #ffe14a; background: #3a52a8; }
 .or-pause .it.quit { background: #6b1a14; }
 .or-pause .it.quit.sel { background: #a8261c; }
+.or-pause .hint .last { color: #ff9a8a; }
+.or-pause .hint .last.armed { color: #ffe14a; }
 .or-pause .hint { margin-top: 6px; text-align: center; font-size: 8px; line-height: 1.8; color: #9fb4c8; }
 @media (max-height: 420px) { .or-pause .box { padding: 12px 18px; gap: 7px; } .or-pause h2 { font-size: 18px; margin-bottom: 4px; } .or-pause .it { min-height: 44px; } }
 `;
@@ -60,9 +63,10 @@ export class PauseMenu {
     this.items = [
       { id: 'resume', label: () => 'RESUME' },
       { id: 'sound', label: () => `SOUND: ${this.o.soundLabel()}` },
-      standalone ? { id: 'restart', label: () => 'RESTART RACE' } : { id: 'quit', label: () => 'QUIT TO TITLE' },
+      standalone ? { id: 'restart', label: () => 'RESTART RACE' } : { id: 'quit', label: () => (this.quitArmed ? 'SURE? QUIT' : 'QUIT TO TITLE') },
     ];
     this.sel = 0;
+    this.quitArmed = false;
     this.open = true;
     this.button.classList.remove('on');
     this.el.classList.add('on');
@@ -75,10 +79,12 @@ export class PauseMenu {
   }
 
   private standalone = false;
+  /** QUIT was pressed once: the next press quits (a season race: counts as last place). */
+  quitArmed = false;
 
   private draw(standalone = this.standalone) {
     this.standalone = standalone;
-    const hint = standalone ? '' : 'THE SEASON IS SAVED AT THE SPEED SHOP<br>BEFORE THIS RACE';
+    const hint = standalone ? '' : `<span class="last${this.quitArmed ? ' armed' : ''}">QUITTING COUNTS AS LAST PLACE</span>`;
     this.el.innerHTML = `<div class="box"><h2>PAUSED</h2>${this.items
       .map((it, i) => `<div class="it ${it.id}${i === this.sel ? ' sel' : ''}" data-tap="pause:${it.id}">${it.label()}</div>`)
       .join('')}${hint ? `<div class="hint">${hint}</div>` : ''}<div class="hint kb-only">ESC / P RESUMES</div></div>`;
@@ -89,12 +95,19 @@ export class PauseMenu {
     if (e.tap?.startsWith('pause:')) return this.choose(e.tap.slice(6) as PauseChoice);
     if (e.key === 'up' || e.key === 'down') {
       this.sel = (this.sel + (e.key === 'up' ? -1 : 1) + this.items.length) % this.items.length;
+      this.quitArmed = false;
       this.draw();
     } else if (e.key === 'confirm') this.choose(this.items[this.sel].id);
     else if (e.key === 'back') this.choose('resume');
   }
 
   private choose(c: PauseChoice) {
+    if (c === 'quit' && !this.quitArmed) {
+      this.quitArmed = true;
+      this.sel = this.items.findIndex((it) => it.id === 'quit');
+      return this.draw();
+    }
+    if (c !== 'quit') this.quitArmed = false;
     this.o.onChoose(c);
     if (c === 'sound') this.draw();
   }
