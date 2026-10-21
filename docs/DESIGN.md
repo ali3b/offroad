@@ -37,7 +37,9 @@ src/
     build.ts         grid → ground mesh (per-track palette), water (ellipses, creek ribbons), mud sheen, tyre walls +
                      flags, bridge decks + railings, start line, flagman tower + start lamps, stadium dressing, props
                      (bunting, solid drums), colliders, surface queries, levelAt (deck or ground)
-    props-view.ts    swaps the placeholder props for instanced prop GLBs (PROP_MODELS table) + floodlights
+    props-view.ts    swaps the placeholder props for instanced prop GLBs (PROP_MODELS table); instanceModel()
+    stadium-view.ts  the stadium from the models: grandstands, VIP box, bleachers, start arch + start light, flagman
+                     character, flags, billboards, desert dressing, tumbleweeds; finds the stands' seats
   race/
     session.ts       the world + track + 1–4 trucks and views, effects, physics → game events
     race.ts          the race flow: Get Ready → lamps → race (gates, laps) → finish → results, records, pickups
@@ -49,7 +51,8 @@ src/
                      MeshoptDecoder), withVariant() (KHR_materials_variants), loadTruckModels()
     truck-view.ts    the truck's look: the generator's GLB with manifest-driven wheels, or the box placeholder
     characters.ts    the generator's Synty characters: Character (clone + mixer, play by clip), loadPoses()
-    crowd.ts         the grandstand fans: a few skinned, the rest the generator's baked poses instanced; cheers
+    crowd.ts         the fans on the stadium's seats: a few skinned, the rest baked poses instanced; seated, they
+                     jump up or cheer seated on finishes and big jumps
   fx/
     particles.ts     pooled instanced billboards: dust, water splash, mud spray, nitro smoke
     skids.ts         skid-mark decals: a ring buffer of instanced ground segments that fade out
@@ -57,7 +60,8 @@ src/
     pixel.ts         the bundled pixel font (Press Start 2P) and a style helper
     race-hud.ts      the one-panel race HUD, the track name, centre banners, floating pickup texts
     results.ts       the podium / results screen (season: FREE RACE! / CREDIT LOST, credits, the shop prompt)
-    podium-view.ts   the results screen's 3D podium: its own small canvas, drivers, trucks, trophy
+    podium-view.ts   the results screen's 3D podium: its own small canvas, the podium model, drivers, trucks, trophy,
+                     confetti
     toast.ts         a short message at the top (F2's DOS look setting)
     debug.ts         F3 overlay
     screens/         full-screen menus: common (DOS look, panels, icons), title, hints, register (+ get ready),
@@ -124,7 +128,8 @@ faces +z (south) and π/2 faces +x (east).
 | `flagman {x, z, heading}` | the flagman's tower and start lamps beside the line |
 | `laps?` | default 4 |
 | `reverse {start}` | the reversed variant's grid; the line, the gate order and ramp headings flip automatically (`getTrack(id, true)`, id `<id>-r`) |
-| `props[]` | dressing: `tyre_pile`, `barrel`, `hay_bale`, `cone` (drawn, not collided), `bunting` (pennants on two poles, `len` m across `rot`, standing on the highest ground under it: marks a jump), `drum` (a 3 m banded drum, solid) |
+| `props[]` | dressing: `tyre_pile`, `barrel`, `hay_bale`, `cone` (drawn, not collided), `bunting` (pennants on two poles, `len` m across `rot`, standing on the highest ground under it: marks a jump), `drum` (a 3 m banded drum, solid); trackside (outside the walls): `tyre_barrier` (a sponsor tyre barrier), `flags`, `pit_wall`, `pit_box`, `cactus`, `rock` |
+| `stadium?` | the stadium around the arena (with models): `vip` (x of the VIP box in the grandstand row, null for none, default 0), `sides` (bleachers outside the side walls, default true), `desert` (share of the desert spots filled, 0.6), `flora` (`cactus` saguaros, `scrub` low cacti/succulents/dead trees, `mixed`), `tumbleweeds` (3), `sand` (the ground colour outside) |
 | `palette?` | the track's accent colours: `dirt`, `dirtDark`, `dirtLight`, `ridge`, `wallA` / `wallB` (the tyre paint bands, bridge stripes), `flag`, `backWall`, `accent` (barrels) |
 
 **Bridges (crossings).** A heightfield has one height per point, so a crossover is a `bridge` feature plus its own
@@ -269,6 +274,10 @@ speed, nitro), `impact` (wall / truck / ground, strength 0..1, from Rapier conta
 - `fx/particles.ts`: one instanced billboard mesh (InstancedBufferGeometry + a tiny shader, one draw call), up to
   1200 particles simulated per physics step: dust puffs behind the rear wheels on dirt (rate with speed and slides),
   white spray in water, dark mud flecks in mud, a white nitro puff, a dust ring on hard landings.
+- Nitro flame (`race/truck-view.ts`): while a nitro burns, two flames out of the back of the truck: the Pro Racer
+  flame mesh (`flame`) pointed backwards, drawn with an additive orange material and a white-hot core of our own
+  (the export has no FX shader, OR-FB-019), its length and width jittering every frame (about 1.6 m), fading in and
+  out over a tenth of a second.
 - `fx/skids.ts`: a ring buffer of 2400 ground segments drawn as instanced quads built in the vertex shader from
   their two ends; each wheel extends its trail while sliding (> 2.2 m/s sideways) or braking hard, fading over 22 s.
 
@@ -318,6 +327,9 @@ levels / nitros / keys, `cpus[]`, last outcome, shop cursor and turn, the sign-u
 - `scripts/load-check.mjs <url> title|shop`: the title (ground check on the demo race) and the shop (menus only).
 - `scripts/lap-probe.mjs <url> [track] [tuning JSON]`: lap times and speeds alone, for tuning.
 - `scripts/feel-probe.mjs`: acceleration, braking, turn rate, jump and whoops numbers on the proving ground.
+- `scripts/view.mjs <url> <query> <name> <view…>`: close-ups (`px,py,pz>tx,ty,tz`), `race` (the game camera),
+  `cheer`, `js:<code>` steps and `perf` (8 s real time: fps, draw calls, triangles; `BREAKDOWN=1` lists triangles
+  by mesh) → `test-results/view-<name>-<k>.png`.
 
 ## Season and flow (OR3, OR4 title)
 
@@ -446,24 +458,37 @@ afterwards: `__HAS_MODELS__` (vite.config.ts) is decided at server start, so a m
 
 | Name | Asset | Notes |
 |---|---|---|
-| `truck` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | `variants` red #c62828 / blue #1e5bc6 / yellow #f2c618 / grey #8a8f94 in one GLB, `origin: axle-centre`, `fit: { length: 4.5 }`, 1024 px, `compress: meshopt` (585 KB) |
-| `tire_pile`, `tire_stack` | Apocalypse `SM_Prop_Tire_Pile_01`, BattleRoyale `SM_Prop_TireStack_01` | kind `tyre_pile` (variant by position) |
-| `barrel`, `barrel_coloured` | Apocalypse `SM_Prop_Barrel_01`, `SM_Prop_Barrel_Coloured_01` | kind `barrel` |
-| `hay_bale` | War `SM_Prop_Hay_Bale_01` | kind `hay_bale` |
-| `tire`, `cone`, `barrier` | Apocalypse `SM_Prop_Tire_01`, Palm City `SM_Prop_Cone_01`, `SM_Prop_Barrier_01` | kinds `tyre`, `cone`, `barrier`, ready for new tracks |
-| `floodlight` | Apocalypse `SM_Prop_Floodlights_01` (a light-mast trailer) | stadium dressing along the back wall |
-| `billboard_pizza/burgers/holiday/donuts` | City `SM_Prop_Billboard_01` + attach `SM_Prop_Billboard_Sign_02/06/03/04` | adverts between the floodlights on the back wall; 1024 px so the art reads (54–260 KB) |
-| `driver_red/yellow/blue/grey` | City Characters `SK_Character_Biker`, BattleRoyale `Character_RedneckMale_01`, Apocalypse `SK_Chr_Mechanic_Female_01`, City Characters `SK_Character_Roadworker` | podium drivers; clips idle, victory, three waves, slumped, qualified `@Masculine` / `@Feminine` (see Presentation); meshopt |
-| `fan_a/b/c` | City Characters `SK_Character_SummerGirl`, `SK_Character_Jock`, `SK_Character_HipsterGuy` | the 6 skinned crowd fans; clips idle and two waves (`@Feminine` / `@Masculine`), `simplify: 0.5`, meshopt |
-| `crowd_a/b/c` | the same three characters | `poses` (`idle` POLY_IDL_Base at 0.6 s, `cheer_a`/`cheer_b` the two-arm wave at 0.12 / 0.5 s), `simplify: 0.5`, meshopt: static meshes for the instanced crowd |
-| `trophy` | Icons `SM_Icon_Trophy_01` | the winner's cup on the podium |
+| `truck` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | `variants` red #c62828 / blue #1e5bc6 / yellow #f2c618 / grey #8a8f94 in one GLB, `origin: axle-centre`, `fit: { length: 4.5 }`, 1024 px, meshopt (590 KB) |
+| `tire_pile`, `tyre_stack_a/b` | Apocalypse `SM_Prop_Tire_Pile_01`, Pro Racer `SM_Prop_Tyre_Stack_02/04` | kind `tyre_pile` (variant by position) |
+| `barrel`, `barrel_coloured`, `hay_bale`, `tire`, `cone`, `barrier` | Apocalypse, War, Palm City props | kinds `barrel`, `hay_bale`, `tyre`, `cone`, `barrier` |
+| `tyre_barrier`, `flags_sponsor`, `pit_wall`, `pit_box` | Pro Racer `SM_Prop_Barrier_Tyres_01` (CHUG), `SM_Prop_Flag_04`, `SM_Prop_Pit_Wall_01`, `SM_Prop_Pit_Box_02` | trackside kinds `tyre_barrier`, `flags`, `pit_wall`, `pit_box`; sponsor flags also beside every flagman |
+| `grandstand` | Pro Racer `SM_Bld_Grandstand_01` + attach `SM_Bld_Grandstand_Seating_01` | the row behind the back wall (12.5 m sections at 1.1×), 512 px, meshopt; 160 seats each |
+| `vip_box`, `bleachers` | Pro Racer `SM_Bld_Grandstand_VIP_01`, `SM_Prop_Bleachers_01` | the VIP section in the row (32 seats); bleachers outside the side walls (64 seats) |
+| `start_arch`, `start_light`, `flag_chequered` | Pro Racer `SM_Prop_Gantry_06` (the inflatable CHUG arch), `SM_Prop_Trafficlight_01`, `SM_Prop_Flag_01` | the arch over gate 0 (stretched to the gate), the light on its beam (lamp discs lit by the race), chequered flags at its feet and in the flagman's hand |
+| `billboard_skidmark` | Pro Racer `SM_Prop_Billboard_Large_02` | sponsor billboards in the back corners, 1024 px (the A1 SKIDMARK art reads) |
+| `cactus_tall/low`, `succulent_a/b`, `dead_tree`, `rock_a/b`, `rock_tall`, `cliff_a/b`, `tumbleweed` | Arid Desert `SM_Env_Cactus_03/01`, `SM_Env_Succulent_04/06`, `SM_Env_Tree_Dead_02`, `SM_Env_Rock_03`, `SM_Env_Rocks_Spikey_01`, `SM_Env_Rock_07`, `SM_Env_Rock_Cliff_03/16`, `SM_Prop_Tumbleweed_01` | desert outside the walls (kinds `cactus`, `rock` too), meshopt; the cards need `alphaTest` (OR-FB-018) |
+| `driver_red/yellow/blue/grey` | City Characters `SK_Character_Biker`, BattleRoyale `Character_RedneckMale_01`, Apocalypse `SK_Chr_Mechanic_Female_01`, City Characters `SK_Character_Roadworker` | podium drivers; clips `POLY_IDL_Base`, Emotes `Celebrate_BeatChest`, `Celebrate_Clapping_Polite`, `Happy_FistPump` (qualified `@Masculine` / `@Feminine`), Mixamo `Driver_Trophy`, `Driver_Defeated`; meshopt |
+| `flagman` | City Characters `SK_Character_Roadworker` | the flagman on his tower: `POLY_IDL_Base`, Emotes `Happy_ArmsRaised`, Mixamo `Flagman_Wave`; `simplify: 0.6` |
+| `fan_a/b/c` | City Characters `SK_Character_SummerGirl`, `SK_Character_Jock`, `SK_Character_HipsterGuy` | the 6 skinned fans: Mixamo `Crowd_Sit_Idle`, `Crowd_Sit_Cheer`, Emotes `Happy_ArmsRaised`; `simplify: 0.5`, meshopt |
+| `crowd_a…f` | City Characters SummerGirl, Jock, HipsterGuy, Tourist, PunkGirl, Grandpa | `poses`: `sit` (Crowd_Sit_Idle 1.0 s), `sit_cheer_a/b` (Crowd_Sit_Cheer 0.63 / 0.94 s), `arms_a/b` (Happy_ArmsRaised 0.6 / 1.3 s), `fist_a/b` (Happy_FistPump 0.5 / 1.1 s); `simplify: 0.3` (the exporter keeps ~38%), meshopt |
+| `podium`, `trophy` | Pro Racer `SM_Prop_Podium_01`, `SM_Prop_Trophy_01` | the three podium discs at 2× and the winner's cup |
+| `flame` | Pro Racer `SM_Flame_Mesh_01` | the nitro flame's shape (the game draws it additive, OR-FB-019) |
 
 Props default to 256 px WebP textures (Synty atlases are flat colour swatches; 256 px looks the same at the race
 camera), the truck and the billboards 1024 px WebP (the exporter crops each atlas to the region its UVs use).
-Characters, the truck and the crowd poses are `compress: "meshopt"`, so `loadModel` always sets three.js's
-`MeshoptDecoder` on its GLTFLoader. Every clip name is qualified by gender, so `manifest.warnings` is empty for every
-model. Tried and dropped: a stadium light mast (the light-pole pieces are modular parts, OR-FB-007), the Apocalypse tyre wall and a traffic
-light for the start tree (see below).
+Characters, the truck, the crowd poses and the stadium and desert models are `compress: "meshopt"`, so `loadModel`
+always sets three.js's `MeshoptDecoder` on its GLTFLoader. Every clip name is qualified by gender, so `manifest.warnings` is empty for every
+model (two harmless ones: `crowd_b` keeps 38% of its triangles, not 30%; the pit box's two castors "could not be
+mapped" as wheels, OR-FB-023). Tried and dropped: a stadium light mast (the light-pole pieces are modular parts,
+OR-FB-007), the Apocalypse tyre wall, the City billboards and the floodlight trailers (the grandstands took the back
+wall), Pro Racer's characters (OR-FB-016/017) and crowd cards (OR-FB-019), and Arid Desert's background hills (beyond
+the stands, off the top of the screen).
+
+**Vehicles: the lifted pickup stays.** Pro Racer's `SM_Veh_Truck_01` is a race semi-tractor (2.77 × 2.87 × 6.09 m,
+a cab over a bare chassis) and `SM_Veh_Rally_01` a hatchback (0.39 m wheels); `SM_Veh_Dirtbike_01` has two wheels.
+The previews (`ssg model preview … --frames 4`) settle it: neither has the original's chunky big-wheeled stadium
+pickup look that the Palm City pickup on its lift kit gives, so the truck did not change and no race screenshot was
+needed to decide.
 
 **Trucks** (`race/truck-view.ts`). The four colours are one GLB, `truck`, with four paint variants
 (KHR_materials_variants: the geometry once, a tinted texture and material per variant). `loadTruckModels()` loads it
@@ -490,8 +515,41 @@ placeholders it replaced (kinds not in the table keep theirs). Props are drawn a
 
 **Tyre walls stay procedural.** The walls are a tyre per metre × 3 rows in one InstancedMesh (1 draw call) painted in the
 original's red and white bands. The Synty tyre wall is a 4.3 m run of bare black tyres, 0.7 m tall: it would need
-~100 instances per track, could not carry the bands and would not match the 1.3 m wall height. The lamp tree on the
-flagman tower also stays procedural: the race lights its three lamps, and a GLB traffic light has no lamp parts.
+~100 instances per track, could not carry the bands and would not match the 1.3 m wall height (Pro Racer's tyre
+barriers are 3.5 m sponsor blocks: trackside dressing, not a wall). The start light is the Pro Racer traffic light
+on the arch, but its lamps are atlas swatches in one mesh (OR-FB-022), so three procedural lamp discs sit on its lamp
+faces and `track.lights.set(n)` lights them (red top to bottom for 3, 2, 1, all green for GO); the procedural lamp
+tree stays only for the no-models fallback.
+
+**Stadium** (`track/stadium-view.ts`, `dressStadium(track)` from the Session, async). With models:
+- a desert ground plane all round (the track JSON's `stadium.sand`);
+- the grandstand row behind the back wall, spanning the arena plus 10 m each side, with the VIP section at
+  `stadium.vip`; the back wall is lowered to 1.4 m so the front rows show over it, and the race camera's frame box
+  takes in a point 3.5 m up, 7 m behind the walls (`STAND_TOP`), so the top strip of the screen is crowd like the
+  original's; build.ts's procedural stand is removed;
+- bleachers outside the side walls in the back half (`stadium.sides`);
+- the inflatable sponsor arch over gate 0, stretched to the gate's length, the start light on its beam facing the
+  camera, chequered flags at its feet, sponsor flags beside the flagman's tower;
+- the flagman is the roadworker character on the tower (`flagman`): idle, arms raised in the countdown, `Flagman_Wave`
+  at GO, the chequered flag following his right hand (upright, swinging with the wave); build.ts's box man is hidden;
+- sponsor billboards (A1 SKIDMARK) in the back corners with cliffs behind them;
+- the desert outside the walls on a jittered grid: low cacti and rocks only in the near strip (nothing hides the near
+  lane), cacti, succulents, dead trees and rocks on the side strips, by `stadium.flora` and `stadium.desert`, kept
+  clear of the flagman, the arch, the bleachers and the track's props; cacti/succulents/tumbleweed get `alphaTest`
+  (OR-FB-018); small dressing casts no shadow;
+- tumbleweeds (`stadium.tumbleweeds`) rolling east along the near strip with gusts, bouncing, wrapping round
+  (instanced, updated per frame by `Session.render`);
+- seats: `findSeats(model)` casts rays down through a stand model (in its own frame, cached) and finds the flats
+  of its profile; a flat 0.3–0.6 m above the one in front is a seat row with the feet on the lower flat, and a seat
+  every 0.62 m where a ray finds that seat height (OR-FB-024). 160 per grandstand section, 32 on the VIP box, 64 per
+  bleacher; the crowd gets the ones the race camera frames.
+
+Per track (`stadium` in the JSON): Rattlesnake mixed flora; Coyote Canyon saguaros, the VIP left of centre; Bone
+Yard scrub, a pale bone-coloured desert, four tumbleweeds; Dry Creek scrub, a darker desert, the VIP right; Twister
+Flats six tumbleweeds; Buzzard Bend and Thunder Ridge saguaros (the VIP left / right); Mesa Mayhem dense scrub on a
+red desert. Each also has trackside props in the front half of its side strips (a CHUG tyre barrier, a pit wall and
+pit box, sponsor flags), skipped where the flagman stands. Every HUD spot is untouched (the dressing is outside the
+walls).
 
 **Cost** (Rattlesnake race, 4 trucks, SwiftShader at 1280×720; counted from the scene, main pass):
 
@@ -504,11 +562,11 @@ Each truck is 16.7k triangles in 14 meshes (doors, glass, wheels, lift kit); pro
 per model however many are placed. SwiftShader is CPU-bound and runs ~5 fps either way (the checks use
 `advance()`); on a real GPU the scene is well inside budget.
 
-**Bundle** (exporter v6): `dist/` is 9.6 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined)
-and `dist/models/` 4.4 MB for 25 models. The GLBs total 4.37 MB: the truck 585 KB (all four colours, meshopt; 441 KB
-gzipped), the four drivers 1.37 MB, the three skinned fans 0.51 MB, the three crowd pose sets 0.61 MB, the four
-billboards 0.83 MB and the nine props + trophy 0.47 MB. The same 21 models as before the billboards and crowd poses
-would be 2.93 MB.
+**Bundle** (OR5): `dist/` is 13 MB: the JS bundle 5.4 MB (1.9 MB gzipped; mostly Rapier's WASM inlined) and
+`dist/models/` 7.65 MB (7.3 MiB) for 49 models: the six crowd pose sets 2.62 MB (~0.44 MB each, seven poses), the
+four drivers 1.76 MB, the desert 0.77 MB, the skinned fans 0.64 MB, the truck 0.59 MB, the trackside and arena props
+0.5 MB, the stands 0.25 MB, the flagman 0.19 MB, the billboards 0.16 MB, the start arch/light/flags 0.13 MB, the
+podium + cup 0.03 MB and the flame 0.01 MB. Before meshopt on the stadium and desert models the same 49 were 9.5 MB.
 
 | models | GLBs |
 |---|---|
@@ -516,54 +574,62 @@ would be 2.93 MB.
 | 4 tinted trucks (1.37 MB each), 256 px webp props, skinned fans, exporter v5 | 9.63 MB (21 models) |
 | the same specs re-exported by exporter v6 (cropped atlases) | 8.63 MB (21 models) |
 | one `variants` truck + meshopt, qualified clips, simplified fans, crowd `poses`, billboards | 4.37 MB (25 models) |
+| + Pro Racer stadium, Arid Desert, 6 seated crowd sets, flagman, podium (OR5), meshopt on everything static | 7.65 MB (49 models) |
 
 ## Presentation (OR4)
 
 ### Podium (`ui/podium-view.ts`)
 With models, the results screen's flat pixel drivers become a 3D scene in a 922 × 300 canvas between the times box
 and the plates. It has its own `WebGLRenderer` (one context, made on first use and kept; `alpha` so the screen's
-checker shows round a disc of arena dirt) and its own `requestAnimationFrame` loop while the screen is up. Three
-steps (gold, silver, bronze; the number drawn on a canvas texture with the face's aspect) stand in plate order
-2nd, 1st, 3rd, with 4th on the ground to the right, 3.6 m apart, and the camera's fov is set from the canvas aspect
-so the four columns land over the four plates. Each driver stands in front of their truck (the same TruckView,
+checker shows round a disc of arena dirt) and its own `requestAnimationFrame` loop while the screen is up. The
+podium is Pro Racer's (`podium`, three black discs with a red band, at 2×), centred on the winner's column so its
+discs stand in plate order 2nd, 1st, 3rd, 3.6 m apart, with 4th on the ground to the right; each disc's top is found
+by a ray cast down at its column and its place number (gold, silver, bronze, Press Start 2P) is a canvas label on its
+front. Without the model the procedural steps (gold, silver, bronze boxes) stay. The camera's fov is set from the
+canvas aspect so the four columns land over the four plates. Confetti (260 instanced paper squares, six colours)
+falls and flutters over the winner, recycled at the top (Pro Racer's confetti is a particle effect, OR-FB-020). Each driver stands in front of their truck (the same TruckView,
 parked at `TruckView.groundLift`, turned a little), both at `TRUCK_LOOK`.
 
 | place | clip | |
 |---|---|---|
-| 1st | `MartialArts_Victory` once, then `POLY_IDL_Wave_Double_Loop` | holds the trophy (`trophy`, `SM_Icon_Trophy_01` × 1.7) in `hand_r`, kept upright |
-| 2nd | `POLY_IDL_Wave_Large_Loop` | |
-| 3rd | `POLY_IDL_Wave_Small_Loop` | (no clap clip, OR-FB-009) |
-| 4th | `POLY_IDL_Posture_Slumped_Loop` | |
+| 1st | Emotes `POLY_EMOT_Celebrate_BeatChest` once, then Mixamo `Driver_Trophy` (both arms overhead) | holds the cup (`trophy`, Pro Racer `SM_Prop_Trophy_01` × 0.95) in `hand_r`, kept upright |
+| 2nd | Emotes `POLY_EMOT_Celebrate_Clapping_Polite` | |
+| 3rd | Emotes `POLY_EMOT_Happy_FistPump` | |
+| 4th | Mixamo `Driver_Defeated` (head down; the Emotes `Sad_Tired` is subtler) | |
 
 Drivers by truck colour (`driver_<colour>` in ssg.models.json): red `SK_Character_Biker` (City Characters),
 yellow `Character_RedneckMale_01` (BattleRoyale), blue `SK_Chr_Mechanic_Female_01` (Apocalypse), grey
 `SK_Character_Roadworker` (City Characters, hi-vis). Every driver carries all six clips (any of them can finish
-anywhere), 0.32–0.39 MB each with meshopt. The specs name the Idles-pack clips with the driver's gender
-(`POLY_IDL_Wave_Large_Loop@Feminine` for the mechanic); the GLB keeps the qualified name, and `findClip` matches the
+anywhere), 0.39–0.46 MB each with meshopt. Pro Racer's racing-suit drivers would suit better (their suits take
+`variants`) but export with white skin (OR-FB-016) and their helmets attach at the feet (OR-FB-017). The specs name
+the Synty clips with the driver's gender (`POLY_EMOT_Happy_FistPump@Feminine` for the mechanic; the Mixamo uploads
+have one version each); the GLB keeps the qualified name, and `findClip` matches the
 base name in `CLIPS` to it, so the game code names clips without the qualifier. `main.ts` preloads them after boot. The trophy follows the hand bone's world
 position rather than being parented to it, so it never takes the bone's axes. `window.__or.podium()` gives
 `stop()`, `tick(dt)` (step the clips by hand for frame captures) and `info` (draw calls, triangles).
 
 ### Crowd (`race/crowd.ts`)
-build.ts names its grandstand group `grandstand` and its box crowd `crowd` (the hook); the Session's `Crowd`
-hides the boxes once the fans have loaded and stands a fan on every other box spot (44 on the four benches), at
-`FAN_LOOK = 1.05`. Three characters (City Characters SummerGirl, Jock, HipsterGuy), each exported twice:
-- `crowd_a/b/c` (`poses`): the generator bakes each into three static meshes, one node per pose: `idle`
-  (`POLY_IDL_Base` at 0.6 s), `cheer_a` and `cheer_b` (`POLY_IDL_Wave_Double_Loop` at 0.12 s and 0.5 s), no skeleton.
-  `loadPoses()` returns each pose's mesh parts with their matrix in the export (the meshopt child carries the
-  dequantising transform). One InstancedMesh per fan model per pose; while cheering, each fan flips between the two
-  cheer frames at its own phase (~4 Hz) and hops a little, and the matrices are re-packed so each mesh draws only the
-  fans in its pose. 38 fans.
-- `fan_a/b/c` (skinned, clips idle and two waves): 6 fans along the front rows are `Character`s with their own mixer
-  (idle; when cheering a two-arm or a large wave, cross-faded). They keep the front rows moving smoothly between
-  the frame-flipping instanced fans, at 6 draw calls, so they stay.
-- Both are `simplify: 0.5` (~1.1k triangles a fan instead of ~2.3k): from the race camera and in a close-up of the
-  stand the faceted look is unchanged (docs/screenshots/crowd.png).
+The fans sit on the stadium's seats (`StadiumView.seats`, found by `findSeats`, see "Stadium"): the Session hands the
+Crowd a promise of them. Of the seats the race camera frames (1384 on Rattlesnake Run), it fills up to 320, scored
+by a hash plus a little per row so the front rows are fuller but the back is not empty, at `FAN_LOOK = 1.1` (the
+stands are drawn at 1.1 too). Six City Characters (SummerGirl, Jock, HipsterGuy, Tourist, PunkGirl, Grandpa):
+- `crowd_a…f` (`poses`): seven static meshes each, one node per pose: `sit` (Mixamo `Crowd_Sit_Idle` at 1.0 s),
+  `sit_cheer_a/b` (`Crowd_Sit_Cheer` at 0.63 / 0.94 s: an arm up), `arms_a/b` (Emotes `Happy_ArmsRaised` at 0.6 /
+  1.3 s) and `fist_a/b` (`Happy_FistPump` at 0.5 / 1.1 s). All poses share the first pose's origin (the seated
+  fan's feet), so a fan stands up in place. `loadPoses()` returns each pose's mesh parts with their matrix in the
+  export (the meshopt child carries the dequantising transform). One InstancedMesh per fan model per pose; the
+  matrices are re-packed so each mesh draws only the fans in its pose.
+- Seated while nothing happens. On a cheer, 45% of the fans jump up (half arms raised, half fist-pumping) and hop a
+  little; the rest cheer from their seats; each flips between its two frames at its own phase (~4 Hz).
+- `fan_a/b/c` (skinned: `Crowd_Sit_Idle`, `Crowd_Sit_Cheer`, `Happy_ArmsRaised`): 6 fans spread along the front row
+  are `Character`s with their own mixer, cross-fading seated → cheering, so the front rows move smoothly between the
+  frame-flipping instanced fans.
+- `simplify: 0.3` on the pose sets (the exporter keeps 38–40%: ~820 triangles a fan); the crowd casts no shadow.
 - Cheers: `finish` (any truck, 4 s) and `land` with `airTime ≥ 0.5 s` (2.5 s), from the event bus; a new cheer
-  extends the current one. `window.__or.crowd()` gives `cheer(s)`, `cheering`, `drawCalls()`, `ready`.
+  extends the current one. `window.__or.crowd()` gives `cheer(s)`, `cheering`, `count`, `drawCalls()`, `ready`.
+- Without models there are no seats and build.ts's procedural stand keeps its box crowd.
 - The pose geometry belongs to the cached model; RaceScene.dispose detaches the crowd before it frees the scene.
-- Before OR-FB-012 was fixed the game baked the poses itself (`bakePose`: a mixer per pose and the skin applied to
-  every vertex on the CPU at load).
+- The Mixamo clips (`Crowd_*`, `Driver_*`, `Flagman_Wave`) are in the generator's `_Uploads` pack (ids 3348–3363).
 
 **Cost** (Rattlesnake race, 4 trucks, SwiftShader 1280×720, both passes: main + shadow map; the crowd's own
 triangles are per pass):
@@ -575,9 +641,17 @@ triangles are per pass):
 | game-baked fans, full detail, cheering (before) | 226 | 562k | ~98k | 4 |
 | exported poses + simplify 0.5 + billboards, idle | 232 | 466k | 49.5k | 4.0 |
 | exported poses + simplify 0.5 + billboards, cheering | 238 | 466k | 49.5k | 4.0 |
+| Pro Racer stadium + desert, 320 seated fans (OR5), idle | 263 | 665k | 263k | 4.0 |
+| the same, cheering, mid-race (`view.mjs … perf`) | 301 | 757k | 263k | 4.0 |
 
 The fans now add 9–12 draw calls and ~49k triangles per pass (half of before); the four billboards add ~12 draw
 calls. SwiftShader is CPU-bound at ~4 fps either way, so the frame rate does not move there.
+
+With the stadium (OR5) the crowd is 320 fans in view (of 1384 seats the camera frames) at ~820 triangles each, drawn
+in the main pass only (`castShadow = false`), as 6 models × 7 poses of instanced meshes (~20 of them non-empty at a
+time) plus 6 skinned fans. Seven grandstand sections, the VIP box and eight bleachers are one InstancedMesh per GLB
+mesh; the desert is ~15 models, instanced, unshadowed. SwiftShader still measures 4 fps on Rattlesnake Run at
+1280×720 (`node scripts/view.mjs <url> scene=race p perf`, 8 s real time); the extra triangles are the crowd's.
 
 ### Local multiplayer (`engine/input.ts`, `game/flow.ts`)
 Up to three humans like the original (red, yellow, blue; grey is always the CPU boss). They join at the sign-up

@@ -16,13 +16,17 @@ source assets by hand.
 - **Eight stadium tracks**, each also raced in reverse: bridges, a jump crossing, banked lanes, plateaus, a creek,
   whoops, mud and water.
 - **Four-truck, four-lap races** against three CPU drivers who follow the racing line, bump you, fire nitros on the
-  straights and grab money bags and nitro bottles. A flagman and a lamp tree start every race.
+  straights and grab money bags and nitro bottles. A flagman on his tower and a start light on the sponsor arch
+  start every race; a nitro burst lights a flame out of the back of the truck.
 - **A season**: sign up with your initials and truck colour, win prize money ($100K / $90K / $80K / $70K), keep
   your credits by beating every CPU truck, and spend your cash in the **Speed Shop** (nitro, acceleration, tires,
   shocks, top speed). The track rotation adds tracks and flips their direction as the season goes on.
-- **A 3D podium** after every race: the top three drivers on the steps in front of their trucks, the winner raising
-  the trophy, 2nd and 3rd waving, 4th slumped; prize money, times and the track record.
-- **A crowd** in the grandstand that cheers at the finish and at big jumps.
+- **A 3D podium** after every race: the top three drivers on the podium in front of their trucks, the winner beating
+  their chest and lifting the cup under confetti, 2nd clapping, 3rd fist-pumping, 4th hanging their head; prize
+  money, times and the track record.
+- **A stadium** round every track: grandstands with a VIP box along the back and bleachers down the sides, full of
+  seated fans who jump up and cheer at the finish and at big jumps; sponsor billboards, flags and tyre barriers, a pit
+  wall, and the desert outside with cacti, rocks and tumbleweeds rolling in the wind. Each track has its own desert.
 - **FM-style music and sound effects** synthesised in the browser: engines, skids, splashes, crashes, countdown.
 - **A title screen with a demo race** and an attract loop with racing hints.
 - **The DOS look** (F2): 200 lines, a 256- or 16-colour palette and scanlines.
@@ -36,6 +40,9 @@ source assets by hand.
 ![The Speed Shop](docs/screenshots/shop.png)
 
 ![The results podium](docs/screenshots/race-results.png)
+![The crowd cheering in the grandstand](docs/screenshots/crowd.png)
+![The start arch, the start light and the flagman](docs/screenshots/start-gantry.png)
+![A nitro burst](docs/screenshots/nitro.png)
 ![The DOS look (F2), 256 colours](docs/screenshots/dos-look.png)
 
 ## Tracks
@@ -111,8 +118,12 @@ Models are generated locally and are not committed: Synty assets can't be redist
 
 ## Credits
 
-Built with three.js and Rapier. 3D assets: Synty Studios POLYGON packs (licensed), exported through the
-synty-sprite-generator pipeline. Music and sound synthesised in the browser. Font: Press Start 2P by CodeMan38
+Built with three.js and Rapier. 3D assets: Synty Studios packs (licensed), exported through the
+synty-sprite-generator pipeline: POLYGON Pro Racer (the stadium, start arch and light, flags, billboards, tyre
+barriers, pit wall, podium, cup, nitro flame), POLYGON Arid Desert Nature Biome (cacti, succulents, rocks, cliffs,
+tumbleweeds), POLYGON Palm City (the trucks), POLYGON City Characters, POLYGON BattleRoyale and POLYGON Apocalypse
+(drivers, fans, the flagman, props), POLYGON War (hay bales); animations from Synty ANIMATION Idles and ANIMATION
+Emotes and Taunts, and Mixamo (seated crowd, driver and flagman clips). Music and sound synthesised in the browser. Font: Press Start 2P by CodeMan38
 (SIL Open Font License), via @fontsource.
 
 ## Licence

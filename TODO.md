@@ -87,6 +87,20 @@ generator's TODO ("3D models + Off Road", "Inbox: from Off Road").
       `or.settings`; a full settings screen (volumes) is still open
 
 ## OR5 · Polish and story
+- [x] Stadium from the bought packs (Pro Racer, Arid Desert, Emotes and Taunts, Mixamo uploads): grandstands + VIP box
+      along the back and bleachers down the sides with ~320 seated fans (`Crowd_Sit_*`) who jump up to cheer
+      (Emotes ArmsRaised / FistPump), 6 skinned; the sponsor arch over the start line with the traffic light (lamp
+      discs lit by the race); the flagman character (`Flagman_Wave`, chequered flag in hand); sponsor flags,
+      billboards, CHUG tyre barriers, pit wall and box; the desert outside (cacti, succulents, rocks, cliffs, rolling
+      tumbleweeds) varied per track by `stadium` options; `scripts/view.mjs` close-ups + perf probe
+- [x] Podium: Pro Racer podium discs + numbers, the Pro Racer cup, confetti; winner chest-beat → `Driver_Trophy`
+      lift, 2nd claps, 3rd fist-pumps, 4th `Driver_Defeated`
+- [x] Nitro flame (Pro Racer flame mesh, additive, flickering)
+- [x] Vehicles evaluated: Pro Racer's truck is a race semi and the rally car a hatchback, so the lifted pickup stays
+      (docs/DESIGN.md "Vehicles")
+- [x] Models 7.65 MB / 49 (meshopt on all static models); SwiftShader still 4 fps (crowd 263k triangles, main pass only)
+- [ ] Pro Racer drivers in racing suits once OR-FB-016/017 are fixed (white skin, helmets at the feet); drivers in
+      the cabs (`Driver_Drive`) if a closer camera ever shows them
 - [ ] Performance passes (instancing, shadow budget), gamepad polish
 - [x] A gallery page (`gallery.html` in the Pages build: the trailer, screens and tracks in the DOS style)
 - [ ] The chapter-per-milestone documentary treatment like the other games
