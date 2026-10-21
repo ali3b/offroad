@@ -21,6 +21,10 @@
     {"name": "crowd_a", "asset": "POLYGON_City_Characters/SK_Character_SummerGirl", "simplify": 0.5, "compress": "meshopt", "poses": [{"name": "idle", "clip": "POLY_IDL_Base@Feminine", "time": 0.6}, {"name": "cheer_a", "clip": "POLY_IDL_Wave_Double_Loop@Feminine", "time": 0.12}, {"name": "cheer_b", "clip": "POLY_IDL_Wave_Double_Loop@Feminine", "time": 0.5}]},
     {"name": "crowd_b", "asset": "POLYGON_City_Characters/SK_Character_Jock", "simplify": 0.5, "compress": "meshopt", "poses": [{"name": "idle", "clip": "POLY_IDL_Base@Masculine", "time": 0.6}, {"name": "cheer_a", "clip": "POLY_IDL_Wave_Double_Loop@Masculine", "time": 0.12}, {"name": "cheer_b", "clip": "POLY_IDL_Wave_Double_Loop@Masculine", "time": 0.5}]},
     {"name": "crowd_c", "asset": "POLYGON_City_Characters/SK_Character_HipsterGuy", "simplify": 0.5, "compress": "meshopt", "poses": [{"name": "idle", "clip": "POLY_IDL_Base@Masculine", "time": 0.6}, {"name": "cheer_a", "clip": "POLY_IDL_Wave_Double_Loop@Masculine", "time": 0.12}, {"name": "cheer_b", "clip": "POLY_IDL_Wave_Double_Loop@Masculine", "time": 0.5}]},
-    {"name": "trophy", "asset": "POLYGON_Icons/SM_Icon_Trophy_01", "origin": "bottom-centre"}
+    {"name": "trophy", "asset": "POLYGON_Icons/SM_Icon_Trophy_01", "origin": "bottom-centre"},
+    {"name": "billboard_pizza", "asset": "POLYGON_City/SM_Prop_Billboard_01", "attach": ["SM_Prop_Billboard_Sign_02"], "origin": "bottom-centre", "texSize": 1024},
+    {"name": "billboard_burgers", "asset": "POLYGON_City/SM_Prop_Billboard_01", "attach": ["SM_Prop_Billboard_Sign_06"], "origin": "bottom-centre", "texSize": 1024},
+    {"name": "billboard_holiday", "asset": "POLYGON_City/SM_Prop_Billboard_01", "attach": ["SM_Prop_Billboard_Sign_03"], "origin": "bottom-centre", "texSize": 1024},
+    {"name": "billboard_donuts", "asset": "POLYGON_City/SM_Prop_Billboard_01", "attach": ["SM_Prop_Billboard_Sign_04"], "origin": "bottom-centre", "texSize": 1024}
   ]
 }
