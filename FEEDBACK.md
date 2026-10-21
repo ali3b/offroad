@@ -7,6 +7,7 @@ and never reuse a number; the `OR-` prefix keeps them apart from Solitary Strike
 Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (the game's workaround was removed).
 
 <!-- Template
+
 ## OR-FB-001 · <title>
 - Severity: blocks | workaround | polish        Milestone: OR1
 - Tried: `ssg model …` / MCP tool …
@@ -63,7 +64,8 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none (`scripts/build-assets.mjs` documents the output shape it reads).
 - Suggested change: add `--json` to the help of `model apply` / `export` / `info`, and document the apply summary in
   docs/MODELS.md.
-- Status: triaged (TODO: OR-FB-003)
+- Status: verified (exporter v6, 2026-10-21). `ssg model --help`, `model preview --help` and the other subcommands list
+  `--json` under "Global Options"; `scripts/build-assets.mjs` reads the documented `{ dir, index, models, removed }`.
 
 ## OR-FB-004 · Default PNG textures make every prop GLB carry a whole atlas (~600 KB for a cone)
 - Severity: polish        Milestone: OR3
@@ -75,7 +77,9 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   trucks: 13 models = 5.7 MB (cone 36 KB, truck 1.37 MB), no visible difference at the race camera.
 - Suggested change: default to WebP, or pick the texture size by kind (props 256–512); optionally let `apply` write a
   pack's atlas once as a shared external texture that several GLBs reference.
-- Status: triaged (TODO: OR-FB-004)
+- Status: verified (exporter v6, 2026-10-21). Atlases are cropped to their UVs and webp by default: re-exporting the same
+  21 specs went from 9.63 MB to 8.63 MB of GLBs (cone 36 → 19 KB, barrel 35 → 23 KB, floodlight 200 → 195 KB). The
+  game keeps `"defaults": { "texSize": 256 }` so its characters stay small; the props would get 256 px by kind anyway.
 
 ## OR-FB-005 · Billboards export without their sign art
 - Severity: workaround        Milestone: OR3
@@ -88,7 +92,11 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: no billboards (`track/props-view.ts` comment); floodlight trailers dress the back wall instead.
 - Suggested change: bind sign/billboard materials to their own textures (or expose the texture choice in the spec,
   e.g. `textures: { slot: "Billboard_03" }`), and let `model info` show the materials and textures an export uses.
-- Status: triaged (TODO: OR-FB-005)
+- Status: verified (2026-10-21, after the City/Palm City re-ingest). `ssg model preview` of Palm City
+  `SM_Prop_Billboard_01` / `_02` and City `SM_Prop_Billboard_01` + `SM_Prop_Billboard_Sign_01..07` at `texSize: 1024`
+  shows each advert (Welcome to Palm City, Palms Estate / Bad Tooth, City Life, Hot Pizza, Tropical Holiday, Donuts,
+  Casino, Big Burgers, Polygonda). Four City billboards (`billboard_pizza/burgers/holiday/donuts`) now stand between the
+  floodlights on the back wall (`track/props-view.ts`), and the art reads from the race camera.
 
 ## OR-FB-006 · Four tints of one truck are four full copies of its geometry
 - Severity: polish        Milestone: OR3
@@ -98,7 +106,11 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none (the game loads all four).
 - Suggested change: `tints: { red: "#c62828", … }` on one spec, written as one GLB with KHR_materials_variants, or
   a texture-only output per tint; separately, an option for meshopt/quantised geometry.
-- Status: triaged (TODO: OR-FB-006)
+- Status: verified (exporter v6, 2026-10-21). One `truck` spec with `variants` (red/blue/yellow/grey) and
+  `compress: "meshopt"`: one 585 KB GLB (441 KB gzipped) replaces 4 × 1.37 MB. `race/models.ts` loads it with the
+  MeshoptDecoder and gives each colour a scene clone with its variant's materials (`withVariant`, the
+  parser.associations recipe in docs/MODELS.md). `ssg model preview --variant blue` etc. show each colour; the race
+  grid and the podium show four colours. All models: 8.63 MB → 4.37 MB, with 4 billboards and 3 crowd pose sets added.
 
 ## OR-FB-007 · Prop search gives no hint that a hit is a modular piece or oddly scaled
 - Severity: polish        Milestone: OR3
@@ -112,7 +124,10 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: `POLYGON_Apocalypse/SM_Prop_Floodlights_01` (a light-mast trailer, 3.5 × 3.9 m) as the floodlight.
 - Suggested change: a size column (metres) in `ssg assets` / `search_assets`, and a modular-piece flag or a link to
   the assembled prefab when the pack has one.
-- Status: triaged (TODO: OR-FB-007)
+- Status: verified (2026-10-21). `ssg assets billboard --kind prop` has a `size m` column, and `--min-size`, `--max-size`,
+  `--no-modular` filter by it (`ssg assets "stadium light" --kind prop --min-size 5 --no-modular`). The size column
+  alone picked the billboards without a `model info` per hit. Small gap: `--no-modular` still lists City
+  `SM_Prop_Billboard_Sign_0N`, which are the sign panels of `SM_Prop_Billboard_01` (OR-FB-015).
 
 ## OR-FB-008 · `ssg model preview` fails when the web dev server is down, though the API serves the page itself
 - Severity: workaround        Milestone: OR4
@@ -127,7 +142,9 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Suggested change: when the server serves the web build itself, open the preview page from its own origin (or
   fall back to it when `SSG_WEB_URL` does not answer), and turn a connection error into one line that names the URL
   and the setting.
-- Status: open
+- Status: verified (2026-10-21). With nothing on 5180 (`/api/health` still says `webUrl: http://localhost:5180`), `ssg
+  model preview` renders through the API's own page: every new model in this pass was previewed first (the variant
+  truck in four colours, the crowd poses, seven billboards), 3–5 s each.
 
 ## OR-FB-009 · No clap, cheer, celebrate, defeat or seated clips
 - Severity: workaround        Milestone: OR4
@@ -142,7 +159,8 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   (`ssg.models.json`, `race/characters.ts` CLIPS). No driver is drawn in the cabs.
 - Suggested change: an animation pack (or Mixamo uploads) with clap, cheer/fist-pump, dejected, a seated idle and a
   seated driving pose; and synonyms in the clip search (cheer → wave/victory, sad → slumped/disappointed).
-- Status: open
+- Status: open (re-checked 2026-10-21: `ssg animations cheer|clap|celebrate|fist` still find nothing; the crowd's
+  cheer poses are frames of `POLY_IDL_Wave_Double_Loop`)
 
 ## OR-FB-010 · A clip name is ambiguous: Masculine and Feminine (and Polygon/Sidekick) variants share it
 - Severity: polish        Milestone: OR4
@@ -155,7 +173,11 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none (both look acceptable at podium size).
 - Suggested change: pick the variant that matches the character's gender by default, accept an id or a qualifier
   (`POLY_IDL_Wave_Large_Loop@Feminine`), and put `{ id, gender, rig, pack }` in the manifest's clip entry.
-- Status: open
+- Status: verified (exporter v6, 2026-10-21). Without qualifiers every character export warned `clip POLY_IDL_Base: 2
+  clips match; used POLY_IDL_Base@Masculine (#174, ANIMATION_Idles)…` (it already picked the character's gender). The
+  specs now say `POLY_IDL_…@Masculine` / `@Feminine` per character; the manifests carry `source: { id, pack, name,
+  variant, set }`, the GLB keeps the qualified name (`race/characters.ts findClip` matches the base name) and
+  `manifest.warnings` is absent on all 25 models.
 
 ## OR-FB-011 · `simplify` does nothing on a skinned character (and says nothing)
 - Severity: polish        Milestone: OR4
@@ -164,7 +186,9 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Got: 2304 → 2274, 1814 → 1794, 2636 → 2612 triangles; new export ids, no `warnings`.
 - Workaround: the fans stay at full detail (the crowd is ~98k triangles per pass); the spec does not set `simplify`.
 - Suggested change: simplify skinned meshes too (keeping the skin weights), or say in `warnings` that it was skipped.
-- Status: open
+- Status: verified (exporter v6, 2026-10-21). `simplify: 0.5` on the fans (skinned `fan_a/b/c` and the `crowd_a/b/c`
+  poses): the 44-fan crowd went from ~98k to 49.5k triangles per pass, the skinned fans still animate, and the
+  faceted look holds in a close-up of the stand (docs/screenshots/crowd.png).
 
 ## OR-FB-012 · Crowds need static posed meshes; the game skins them on the CPU itself
 - Severity: workaround        Milestone: OR4
@@ -178,7 +202,10 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   model per pose (idle, two cheer frames) plus 6 skinned fans.
 - Suggested change: the `pose` spec field above; and character manifests could carry a posed bound too (the
   `bounds` are the T-pose: 2.05 × 1.86 × 0.37 m for a person, which is no use for spacing a crowd).
-- Status: open
+- Status: verified (exporter v6, 2026-10-21). `crowd_a/b/c` are `poses` exports (`idle` POLY_IDL_Base 0.6 s, `cheer_a`/`cheer_b`
+  POLY_IDL_Wave_Double_Loop 0.12 / 0.5 s), a node per pose; `race/crowd.ts` instances their meshes directly and
+  `bakePose()` is gone. The manifests' `bounds` are now posed (1.07 × 2.15 × 0.48 m with the arms up, 0.78 m wide at
+  idle, against the 2.05 m T-pose before). 6 skinned fans stay for life in the front rows.
 
 ## OR-FB-013 · No 3D trophy: the trophy props are flat icons
 - Severity: polish        Milestone: OR4
@@ -190,4 +217,29 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   the flatness does not show.
 - Suggested change: a pack gap note (a sports/stadium pack with trophies); `ssg assets` could tag icon-pack props
   as `icon` so a search can tell them from full props.
+- Status: open
+
+## OR-FB-014 · Previewing a `poses` export draws every pose on top of each other
+- Severity: polish        Milestone: OR4
+- Tried: `ssg model preview --spec crowd_a.json --out x.png` with a three-pose spec (idle, two cheer frames), then
+  `--pose cheer_a` (`error: unknown option '--pose'`) and `--variant cheer_a` (no variant).
+- Wanted: to look at each baked pose before using it, as `--variant` does for paint variants.
+- Got: one figure with all three poses overlaid (arms down and arms up at once), headed by the bounds of the
+  union. `preview` also has no `--pose`, `--poses`, `--simplify`, `--fit-*` or `--tex` flags (export has them), so
+  those only work through `--spec`.
+- Workaround: one throwaway single-`pose` spec per frame, previewed one by one (same export settings, different ids).
+- Suggested change: `--pose <name>` on preview for a `poses` export (or a contact sheet with one column per pose),
+  and the export flags on preview too.
+- Status: open
+
+## OR-FB-015 · `ssg assets --no-modular` lists the City billboard's sign panels
+- Severity: polish        Milestone: OR4
+- Tried: `ssg assets billboard --kind prop --no-modular`.
+- Wanted: whole models only.
+- Got: City `SM_Prop_Billboard_Sign_01..07` (4.2 × 2.03 × 0.12 m) and Apocalypse `SM_Prop_Billboard_Sign_0N`
+  are listed; they are the advert panels that docs/MODELS.md says to `attach` to `SM_Prop_Billboard_01` (the frame
+  alone has no sign).
+- Workaround: none needed (the docs say how to pair them).
+- Suggested change: flag sign panels as modular / attachment pieces, or have the search row for the frame say
+  `attach: SM_Prop_Billboard_Sign_01..07`.
 - Status: open

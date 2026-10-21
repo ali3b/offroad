@@ -44,10 +44,11 @@ src/
     roster.ts        the four trucks (colours, our driver names, skills), start nitros, prize money
     pickups.ts       money bags and nitro bottles on the racing line, escalating values
     events.ts        the game event bus (audio subscribes here)
-    models.ts        public/models/models.json (ssg model apply) when present: modelIndex(), loadModel(name)
+    models.ts        public/models/models.json (ssg model apply) when present: modelIndex(), loadModel(name) (with the
+                     MeshoptDecoder), withVariant() (KHR_materials_variants), loadTruckModels()
     truck-view.ts    the truck's look: the generator's GLB with manifest-driven wheels, or the box placeholder
-    characters.ts    the generator's Synty characters: Character (clone + mixer, play by clip), bakePose()
-    crowd.ts         the grandstand fans: a few skinned, the rest baked poses instanced; cheers on the event bus
+    characters.ts    the generator's Synty characters: Character (clone + mixer, play by clip), loadPoses()
+    crowd.ts         the grandstand fans: a few skinned, the rest the generator's baked poses instanced; cheers
   fx/
     particles.ts     pooled instanced billboards: dust, water splash, mud spray, nitro smoke
     skids.ts         skid-mark decals: a ring buffer of instanced ground segments that fade out
@@ -412,22 +413,30 @@ afterwards: `__HAS_MODELS__` (vite.config.ts) is decided at server start, so a m
 
 | Name | Asset | Notes |
 |---|---|---|
-| `truck_red/blue/yellow/grey` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | tint #c62828 / #1e5bc6 / #f2c618 / #8a8f94, `origin: axle-centre`, `fit: { length: 4.5 }`, 1024 px |
+| `truck` | `POLYGON_Palm_City/SM_Veh_Pickup_01` + attach `SM_Veh_Pickup_Lift_01` | `variants` red #c62828 / blue #1e5bc6 / yellow #f2c618 / grey #8a8f94 in one GLB, `origin: axle-centre`, `fit: { length: 4.5 }`, 1024 px, `compress: meshopt` (585 KB) |
 | `tire_pile`, `tire_stack` | Apocalypse `SM_Prop_Tire_Pile_01`, BattleRoyale `SM_Prop_TireStack_01` | kind `tyre_pile` (variant by position) |
 | `barrel`, `barrel_coloured` | Apocalypse `SM_Prop_Barrel_01`, `SM_Prop_Barrel_Coloured_01` | kind `barrel` |
 | `hay_bale` | War `SM_Prop_Hay_Bale_01` | kind `hay_bale` |
 | `tire`, `cone`, `barrier` | Apocalypse `SM_Prop_Tire_01`, Palm City `SM_Prop_Cone_01`, `SM_Prop_Barrier_01` | kinds `tyre`, `cone`, `barrier`, ready for new tracks |
 | `floodlight` | Apocalypse `SM_Prop_Floodlights_01` (a light-mast trailer) | stadium dressing along the back wall |
-| `driver_red/yellow/blue/grey` | City Characters `SK_Character_Biker`, BattleRoyale `Character_RedneckMale_01`, Apocalypse `SK_Chr_Mechanic_Female_01`, City Characters `SK_Character_Roadworker` | podium drivers; clips idle, victory, three waves, slumped (see Presentation) |
-| `fan_a/b/c` | City Characters `SK_Character_SummerGirl`, `SK_Character_Jock`, `SK_Character_HipsterGuy` | grandstand crowd; clips idle and two waves |
+| `billboard_pizza/burgers/holiday/donuts` | City `SM_Prop_Billboard_01` + attach `SM_Prop_Billboard_Sign_02/06/03/04` | adverts between the floodlights on the back wall; 1024 px so the art reads (54–260 KB) |
+| `driver_red/yellow/blue/grey` | City Characters `SK_Character_Biker`, BattleRoyale `Character_RedneckMale_01`, Apocalypse `SK_Chr_Mechanic_Female_01`, City Characters `SK_Character_Roadworker` | podium drivers; clips idle, victory, three waves, slumped, qualified `@Masculine` / `@Feminine` (see Presentation); meshopt |
+| `fan_a/b/c` | City Characters `SK_Character_SummerGirl`, `SK_Character_Jock`, `SK_Character_HipsterGuy` | the 6 skinned crowd fans; clips idle and two waves (`@Feminine` / `@Masculine`), `simplify: 0.5`, meshopt |
+| `crowd_a/b/c` | the same three characters | `poses` (`idle` POLY_IDL_Base at 0.6 s, `cheer_a`/`cheer_b` the two-arm wave at 0.12 / 0.5 s), `simplify: 0.5`, meshopt: static meshes for the instanced crowd |
 | `trophy` | Icons `SM_Icon_Trophy_01` | the winner's cup on the podium |
 
 Props default to 256 px WebP textures (Synty atlases are flat colour swatches; 256 px looks the same at the race
-camera), trucks 1024 px WebP. Tried and dropped: billboards (their sign art does not come through, OR-FB-005), a
-stadium light mast (the light-pole pieces are modular parts, OR-FB-007), the Apocalypse tyre wall and a traffic
+camera), the truck and the billboards 1024 px WebP (the exporter crops each atlas to the region its UVs use).
+Characters, the truck and the crowd poses are `compress: "meshopt"`, so `loadModel` always sets three.js's
+`MeshoptDecoder` on its GLTFLoader. Every clip name is qualified by gender, so `manifest.warnings` is empty for every
+model. Tried and dropped: a stadium light mast (the light-pole pieces are modular parts, OR-FB-007), the Apocalypse tyre wall and a traffic
 light for the start tree (see below).
 
-**Trucks** (`race/truck-view.ts`). `loadTruckModels()` loads `truck_<colour>`. The specs ask the exporter for
+**Trucks** (`race/truck-view.ts`). The four colours are one GLB, `truck`, with four paint variants
+(KHR_materials_variants: the geometry once, a tinted texture and material per variant). `loadTruckModels()` loads it
+once and makes each colour with `withVariant(model, colour)`: the docs/MODELS.md recipe (the glTF parser's
+`associations` give each mesh's primitive, whose variant mapping names the material to load), applied to a clone of
+the scene, so geometry is shared and each variant's material is shared by its clones. The spec asks the exporter for
 `fit: { length: 4.5 }`, the physics chassis length, so the GLB arrives at the game's size: 4.5 m long, 2.53 m wide
 over the tyres, a 2.85 m wheelbase (physics 2.9 m) and 0.55 m wheels. `TruckView` draws it in a holder scaled by
 `TRUCK_LOOK = 1.12`, a style choice: the original draws its trucks chunky so they read at the far camera. The look is
@@ -441,7 +450,8 @@ the low sun. Without models the box truck is drawn.
 
 **Props** (`track/props-view.ts`). `dressTrack(track)` runs from the Session constructor (fire and forget). It maps
 each track JSON `props` entry's `kind` to model names through `PROP_MODELS`, adds floodlight trailers along the back
-wall, builds one `InstancedMesh` per GLB mesh per model with every placement, and then hides the build.ts
+wall with an advert billboard between each pair (pizza, burgers, holiday, donuts in turn, standing just in front of
+the wall's face), builds one `InstancedMesh` per GLB mesh per model with every placement, and then hides the build.ts
 placeholders it replaced (kinds not in the table keep theirs). Props are drawn at `PROP_LOOK = 1.4` (floodlights
 1.2 × that) to match the 1 m wall tyres and the chunky trucks.
 
@@ -461,10 +471,18 @@ Each truck is 16.7k triangles in 14 meshes (doors, glass, wheels, lift kit); pro
 per model however many are placed. SwiftShader is CPU-bound and runs ~5 fps either way (the checks use
 `advance()`); on a real GPU the scene is well inside budget.
 
-**Bundle** (before the OR4 characters: `dist/` is now 15 MB with 9.2 MB of models, the 7 characters + trophy
-adding 3.5 MB): `dist/` was 11 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined) and
-`dist/models/` 5.9 MB, of which the four trucks are 4 × 1.37 MB (0.66 MB gzipped each, the same geometry four
-times, OR-FB-006) and the nine props 0.7 MB. With the default PNG textures the models were 19.6 MB (OR-FB-004).
+**Bundle** (exporter v6): `dist/` is 9.6 MB: the JS bundle 5.2 MB (1.9 MB gzipped; mostly Rapier's WASM inlined)
+and `dist/models/` 4.4 MB for 25 models. The GLBs total 4.37 MB: the truck 585 KB (all four colours, meshopt; 441 KB
+gzipped), the four drivers 1.37 MB, the three skinned fans 0.51 MB, the three crowd pose sets 0.61 MB, the four
+billboards 0.83 MB and the nine props + trophy 0.47 MB. The same 21 models as before the billboards and crowd poses
+would be 2.93 MB.
+
+| models | GLBs |
+|---|---|
+| 4 tinted truck GLBs, PNG textures (before OR-FB-004) | 19.6 MB (17 models) |
+| 4 tinted trucks (1.37 MB each), 256 px webp props, skinned fans, exporter v5 | 9.63 MB (21 models) |
+| the same specs re-exported by exporter v6 (cropped atlases) | 8.63 MB (21 models) |
+| one `variants` truck + meshopt, qualified clips, simplified fans, crowd `poses`, billboards | 4.37 MB (25 models) |
 
 ## Presentation (OR4)
 
@@ -487,35 +505,46 @@ parked at `TruckView.groundLift`, turned a little), both at `TRUCK_LOOK`.
 Drivers by truck colour (`driver_<colour>` in ssg.models.json): red `SK_Character_Biker` (City Characters),
 yellow `Character_RedneckMale_01` (BattleRoyale), blue `SK_Chr_Mechanic_Female_01` (Apocalypse), grey
 `SK_Character_Roadworker` (City Characters, hi-vis). Every driver carries all six clips (any of them can finish
-anywhere), 0.5–0.7 MB each. `main.ts` preloads them after boot. The trophy follows the hand bone's world
+anywhere), 0.32–0.39 MB each with meshopt. The specs name the Idles-pack clips with the driver's gender
+(`POLY_IDL_Wave_Large_Loop@Feminine` for the mechanic); the GLB keeps the qualified name, and `findClip` matches the
+base name in `CLIPS` to it, so the game code names clips without the qualifier. `main.ts` preloads them after boot. The trophy follows the hand bone's world
 position rather than being parented to it, so it never takes the bone's axes. `window.__or.podium()` gives
 `stop()`, `tick(dt)` (step the clips by hand for frame captures) and `info` (draw calls, triangles).
 
 ### Crowd (`race/crowd.ts`)
 build.ts names its grandstand group `grandstand` and its box crowd `crowd` (the hook); the Session's `Crowd`
-hides the boxes once the fans have loaded and stands a fan on every other box spot (44 on the four benches).
-Three fan models (`fan_a/b/c`: City Characters SummerGirl, Jock, HipsterGuy with `POLY_IDL_Base`,
-`POLY_IDL_Wave_Double_Loop`, `POLY_IDL_Wave_Large_Loop`) at `FAN_LOOK = 1.05`:
-- 6 fans along the front rows are skinned `Character`s with their own mixer (idle; when cheering a two-arm or a
-  large wave, cross-faded).
-- The other 38 are baked poses (`bakePose`, OR-FB-012): each fan model is posed with a mixer three times (idle,
-  two frames of the two-arm wave) and its skinned vertices are transformed once on the CPU into a static mesh. One
-  InstancedMesh per fan model per pose; while cheering, each fan flips between the two wave frames at its own
-  phase (~4 Hz) and hops a little, and the matrices are re-packed so each mesh draws only the fans in its pose.
+hides the boxes once the fans have loaded and stands a fan on every other box spot (44 on the four benches), at
+`FAN_LOOK = 1.05`. Three characters (City Characters SummerGirl, Jock, HipsterGuy), each exported twice:
+- `crowd_a/b/c` (`poses`): the generator bakes each into three static meshes, one node per pose: `idle`
+  (`POLY_IDL_Base` at 0.6 s), `cheer_a` and `cheer_b` (`POLY_IDL_Wave_Double_Loop` at 0.12 s and 0.5 s), no skeleton.
+  `loadPoses()` returns each pose's mesh parts with their matrix in the export (the meshopt child carries the
+  dequantising transform). One InstancedMesh per fan model per pose; while cheering, each fan flips between the two
+  cheer frames at its own phase (~4 Hz) and hops a little, and the matrices are re-packed so each mesh draws only the
+  fans in its pose. 38 fans.
+- `fan_a/b/c` (skinned, clips idle and two waves): 6 fans along the front rows are `Character`s with their own mixer
+  (idle; when cheering a two-arm or a large wave, cross-faded). They keep the front rows moving smoothly between
+  the frame-flipping instanced fans, at 6 draw calls, so they stay.
+- Both are `simplify: 0.5` (~1.1k triangles a fan instead of ~2.3k): from the race camera and in a close-up of the
+  stand the faceted look is unchanged (docs/screenshots/crowd.png).
 - Cheers: `finish` (any truck, 4 s) and `land` with `airTime ≥ 0.5 s` (2.5 s), from the event bus; a new cheer
   extends the current one. `window.__or.crowd()` gives `cheer(s)`, `cheering`, `drawCalls()`, `ready`.
-- The baked geometry is cached for the page; RaceScene.dispose detaches the crowd before it frees the scene.
+- The pose geometry belongs to the cached model; RaceScene.dispose detaches the crowd before it frees the scene.
+- Before OR-FB-012 was fixed the game baked the poses itself (`bakePose`: a mixer per pose and the skin applied to
+  every vertex on the CPU at load).
 
-**Cost** (Rattlesnake race, 4 trucks, SwiftShader 1280×720, both passes: main + shadow map):
+**Cost** (Rattlesnake race, 4 trucks, SwiftShader 1280×720, both passes: main + shadow map; the crowd's own
+triangles are per pass):
 
-| | draw calls | triangles | fps (SwiftShader) |
-|---|---|---|---|
-| box crowd (88 boxes) | 204 | 366k | 4 |
-| fans, idle (3 instanced + 6 skinned per pass) | 220 | 562k | 4 |
-| fans, cheering (6 instanced + 6 skinned per pass) | 226 | 562k | 4 |
+| | draw calls | triangles | crowd triangles | fps (SwiftShader) |
+|---|---|---|---|---|
+| box crowd (88 boxes), no billboards | 204 | 366k | | 4 |
+| game-baked fans, full detail, idle (before) | 220 | 562k | ~98k | 4 |
+| game-baked fans, full detail, cheering (before) | 226 | 562k | ~98k | 4 |
+| exported poses + simplify 0.5 + billboards, idle | 232 | 466k | 49.5k | 4.0 |
+| exported poses + simplify 0.5 + billboards, cheering | 238 | 466k | 49.5k | 4.0 |
 
-The fans add 16–22 draw calls and ~98k triangles per pass (Synty characters are ~1.8–2.6k triangles and
-`simplify` does not reduce them, OR-FB-011). SwiftShader is CPU-bound at ~4–5 fps either way.
+The fans now add 9–12 draw calls and ~49k triangles per pass (half of before); the four billboards add ~12 draw
+calls. SwiftShader is CPU-bound at ~4 fps either way, so the frame rate does not move there.
 
 ### DOS look (`engine/retro.ts`)
 Off by default. F2 cycles off → 256 colours → 16 colours → off (a toast says which); the title menu has a
