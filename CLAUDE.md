@@ -26,27 +26,34 @@ plan is `~/.claude/plans/distributed-twirling-lark.md`. Milestones are in `TODO.
   "remake". Internal design notes may say "the 1989 original". Track names, art and music are our own.
 
 ## Controls
-- Arrows or WASD: up = gas, down = brake/reverse, left/right = steer. Space or Shift = nitro. R = reset to the grid.
+- Arrows or WASD: up = gas, down = brake/reverse, left/right = steer. Space or Shift = nitro. R = reset to the grid
+  (standalone scenes only; a season race can't be restarted). Menus: arrows/WASD, Enter/Space, Esc.
 - Gamepad: RT or A = gas, LT or X = brake/reverse, left stick or d-pad = steer, B / Y / RB = nitro, Back = reset.
 - F3 = debug overlay (speed, wheel contacts, suspension, air time, fps). `?debug` opens it on load.
 
 ## Scenes and URL params
-- `?scene=test` (default): the player's truck alone on the test track. `?track=<id>` picks a track JSON.
+- No `?scene` or `?scene=title` (default): the title / attract screen and the season flow (`src/game/flow.ts`;
+  screens in `src/ui/screens/`). `?scene=shop` opens the Speed Shop straight away (the saved season, or a fresh one:
+  `&cash=`, `&race=`, `&colour=`).
+- `?scene=test`: the player's truck alone on the test track. `?track=<id>` picks a track JSON.
 - `?scene=race&track=<id>` (default `rattlesnake`): a 4-truck, 4-lap race. `&reverse` = the reversed variant,
   `&cpus=0..3` fewer CPU trucks, `&autopilot` = the AI drives the player's truck.
 - Tracks are JSON in `src/track/tracks/` (format in docs/DESIGN.md "Track format"), registered in `index.ts`.
-- Game events for audio: `src/race/events.ts` (`events.on('impact', …)`).
+- Game events for audio: `src/race/events.ts` (`events.on('impact', …)`); the flow's `screen` events pick the music.
 
 ## Checks before you finish a milestone
 - `npm run typecheck`
 - `npm run dev` (port 5199), then
   - `node scripts/load-check.mjs http://localhost:5199 test`: no page/console errors, the heightfield matches the
     height grid, the truck sits on four wheels; writes `test-results/test.png`.
-  - `node scripts/load-check.mjs http://localhost:5199 race`: the same for the race scene.
+  - `node scripts/load-check.mjs http://localhost:5199 race`: the same for the race scene (`title`, `shop` too).
   - `node scripts/drive-check.mjs http://localhost:5199`: throttle 3 s (moves > 15 m, upright), a right turn, a
     nitro jump off the ramp; writes `test-results/drive-*.png`.
   - `node scripts/race-check.mjs http://localhost:5199 [track] [--reverse]`: a full 4-lap race on autopilot; all
     four trucks finish, laps counted by the gates, results with prize money; writes `test-results/race-*.png`.
+  - `node scripts/season-check.mjs http://localhost:5199`: the season flow (3 autopilot races, the shop, rotation,
+    credits, continue, game over); writes `test-results/season-*.png`.
+- `npm test` (vitest): the pure season logic (rotation, shop, credits).
 - Look at the screenshots. Tick the milestone in `TODO.md`, update `FEEDBACK.md`, and commit in this repo.
 - Release: `node scripts/record.mjs http://localhost:5199 <name>` → `test-results/video/<name>.mp4`;
   `node scripts/deploy-pages.mjs` → gh-pages.
