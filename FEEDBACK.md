@@ -48,7 +48,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   (2026-10-21): still needed; the lifted pickup is 6.85 m long against our 4.5 m chassis.
 - Suggested change: a `fit` (or `scale`) spec field / `--fit-length` flag, applied before the manifest numbers are
   computed (so wheel radius, pivots and the collider box come out scaled too).
-- Status: open
+- Status: fixed (generator 2ac99e4, wave-16: spec `fit: { length }`, CLI `--fit-length`). Game can drop the wheelbase rescale.
 
 ## OR-FB-003 · `ssg model apply --help` does not list `--json`
 - Severity: polish        Milestone: OR3
@@ -59,7 +59,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none (`scripts/build-assets.mjs` documents the output shape it reads).
 - Suggested change: add `--json` to the help of `model apply` / `export` / `info`, and document the apply summary in
   docs/MODELS.md.
-- Status: open
+- Status: triaged (TODO: OR-FB-003)
 
 ## OR-FB-004 · Default PNG textures make every prop GLB carry a whole atlas (~600 KB for a cone)
 - Severity: polish        Milestone: OR3
@@ -71,7 +71,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
   trucks: 13 models = 5.7 MB (cone 36 KB, truck 1.37 MB), no visible difference at the race camera.
 - Suggested change: default to WebP, or pick the texture size by kind (props 256–512); optionally let `apply` write a
   pack's atlas once as a shared external texture that several GLBs reference.
-- Status: open
+- Status: triaged (TODO: OR-FB-004)
 
 ## OR-FB-005 · Billboards export without their sign art
 - Severity: workaround        Milestone: OR3
@@ -84,7 +84,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: no billboards (`track/props-view.ts` comment); floodlight trailers dress the back wall instead.
 - Suggested change: bind sign/billboard materials to their own textures (or expose the texture choice in the spec,
   e.g. `textures: { slot: "Billboard_03" }`), and let `model info` show the materials and textures an export uses.
-- Status: open
+- Status: triaged (TODO: OR-FB-005)
 
 ## OR-FB-006 · Four tints of one truck are four full copies of its geometry
 - Severity: polish        Milestone: OR3
@@ -94,7 +94,7 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: none (the game loads all four).
 - Suggested change: `tints: { red: "#c62828", … }` on one spec, written as one GLB with KHR_materials_variants, or
   a texture-only output per tint; separately, an option for meshopt/quantised geometry.
-- Status: open
+- Status: triaged (TODO: OR-FB-006)
 
 ## OR-FB-007 · Prop search gives no hint that a hit is a modular piece or oddly scaled
 - Severity: polish        Milestone: OR3
@@ -108,4 +108,4 @@ Status: `open` → `triaged (TODO: …)` → `fixed (<commit>)` → `verified` (
 - Workaround: `POLYGON_Apocalypse/SM_Prop_Floodlights_01` (a light-mast trailer, 3.5 × 3.9 m) as the floodlight.
 - Suggested change: a size column (metres) in `ssg assets` / `search_assets`, and a modular-piece flag or a link to
   the assembled prefab when the pack has one.
-- Status: open
+- Status: triaged (TODO: OR-FB-007)
